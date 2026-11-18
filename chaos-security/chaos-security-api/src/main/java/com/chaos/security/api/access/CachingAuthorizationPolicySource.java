@@ -12,13 +12,7 @@ import java.util.function.LongSupplier;
  *
  * <p>远端来源（数据库、Redis、配置中心）不能每次授权判定都查一次，因此在 TTL 内复用上一次结果。</p>
  *
- * <p>拉取失败时的行为经过取舍：</p>
- * <ul>
- *   <li>已有旧快照 —— 继续使用旧快照并顺延一个 TTL 后重试。远端抖动或有人把策略写坏，不会让所有 DENY 策略
- *   凭空消失（静默放行），也不会让线上请求直接 500；失败通过 failureHandler 上报日志。</li>
- *   <li>没有旧快照（启动后第一次就失败）—— 原样抛出异常。此时既没有策略也没有历史，继续跑等于无策略放行，
- *   不如让调用方感知。</li>
- * </ul>
+ * <p>缓存到期后刷新失败立即传播异常，禁止延长旧快照寿命，以免遗漏新增 DENY 策略。</p>
  */
 public class CachingAuthorizationPolicySource implements AuthorizationPolicySource {
 
@@ -80,12 +74,8 @@ public class CachingAuthorizationPolicySource implements AuthorizationPolicySour
             snapshot.set(new Snapshot(loaded, now + ttlMillis));
             return loaded;
         } catch (RuntimeException ex) {
-            if (current == null) {
-                throw ex;
-            }
             failureHandler.accept(ex);
-            snapshot.set(new Snapshot(current.policies(), now + ttlMillis));
-            return current.policies();
+            throw ex;
         }
     }
 

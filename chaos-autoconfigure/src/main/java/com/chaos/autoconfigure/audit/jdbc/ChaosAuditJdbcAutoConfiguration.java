@@ -58,7 +58,7 @@ public class ChaosAuditJdbcAutoConfiguration {
      * 注册 JDBC 审计事件发布器。
      *
      * <p>{@code chaos.audit.jdbc.independent-transaction=true}（默认）且存在事务管理器时，
-     * 审计在 {@code REQUIRES_NEW} 独立事务中写入，业务回滚不会带走审计记录。</p>
+     * 拒绝、失败及无业务事务的审计使用 {@code REQUIRES_NEW}；已有事务中的 SUCCESS 加入业务事务。</p>
      */
     @Bean
     @ConditionalOnBean(JdbcOperations.class)

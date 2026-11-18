@@ -88,4 +88,23 @@ class DistributedJobRunnerTest {
         assertThat(new DistributedJobRunner(null, null, null, null).run("close", ctx -> executed.add("x"))).isTrue();
         assertThat(executed).containsExactly("x");
     }
+
+    @Test
+    void cleanupFailurePreservesPrimaryAndRestoresContext() {
+        LockHandle handle = mock(LockHandle.class);
+        when(lock.tryLock(any(), any(), any())).thenReturn(Optional.of(handle));
+        var primary = new IllegalStateException("task");
+        var cleanup = new IllegalStateException("unlock");
+        org.mockito.Mockito.doThrow(cleanup).when(handle).unlock();
+        MDC.put("jobName", "previous");
+        try {
+            assertThatThrownBy(() -> new DistributedJobRunner(lock, "test:", null, "test")
+                    .run("new", ctx -> { throw primary; }))
+                    .isSameAs(primary).hasSuppressedException(cleanup);
+            assertThat(MDC.get("jobName")).isEqualTo("previous");
+        } finally {
+            MDC.clear();
+        }
+    }
+
 }

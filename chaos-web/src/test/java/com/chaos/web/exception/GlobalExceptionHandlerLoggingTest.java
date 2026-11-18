@@ -57,7 +57,8 @@ class GlobalExceptionHandlerLoggingTest {
 
         assertThat(appender.list).anySatisfy(event -> {
             assertThat(event.getLevel()).isEqualTo(Level.ERROR);
-            assertThat(event.getThrowableProxy()).isNotNull();
+            assertThat(event.getThrowableProxy()).isNull();
+            assertThat(event.getFormattedMessage()).contains("GlobalExceptionHandlerLoggingTest.java");
         });
     }
 
@@ -70,7 +71,8 @@ class GlobalExceptionHandlerLoggingTest {
 
         assertThat(appender.list).anySatisfy(event -> {
             assertThat(event.getLevel()).isEqualTo(Level.ERROR);
-            assertThat(event.getThrowableProxy()).isNotNull();
+            assertThat(event.getThrowableProxy()).isNull();
+            assertThat(event.getFormattedMessage()).contains("GlobalExceptionHandlerLoggingTest.java");
         });
     }
 

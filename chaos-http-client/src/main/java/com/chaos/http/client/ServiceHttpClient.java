@@ -20,7 +20,7 @@ import org.springframework.web.client.RestTemplate;
 /**
  * 固定服务地址的受限 HTTP 客户端。
  *
- * <p>统一处理服务令牌、幂等键、响应信封解包、连接失败重试一次和 401 刷新令牌；
+ * <p>统一处理服务令牌、幂等键、响应信封解包、GET 网络失败重试一次和 401 刷新令牌；
  * 身份头、错误码翻译和响应上限由子类或构造参数决定，不绑定具体服务。</p>
  */
 public class ServiceHttpClient {
@@ -79,7 +79,7 @@ public class ServiceHttpClient {
     }
 
     /**
-     * 以服务身份调用固定路径，网络重试复用同一请求键。
+     * 以服务身份调用固定路径；POST 网络故障不自动重试，请求键仅作为对端幂等契约的载体。
      *
      * @param <T> 响应 data 的类型
      * @param path 以单个斜杠开始的服务路径
@@ -152,7 +152,9 @@ public class ServiceHttpClient {
         HttpHeaders headers = new HttpHeaders();
         if (method == HttpMethod.POST) {
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Idempotency-Key", requestKey);
+            if (requestKey != null && !requestKey.isBlank()) {
+                headers.set("Idempotency-Key", requestKey);
+            }
         }
         String token = tokens.token();
         if (token != null && !token.isBlank()) {
@@ -183,7 +185,7 @@ public class ServiceHttpClient {
                 }
                 return json.convertValue(tree, json.constructType(type.getType()));
             } catch (ResourceAccessException ex) {
-                if (attempt >= 1) {
+                if (method != HttpMethod.GET || attempt >= 1) {
                     throw ex;
                 }
             } catch (HttpStatusCodeException ex) {

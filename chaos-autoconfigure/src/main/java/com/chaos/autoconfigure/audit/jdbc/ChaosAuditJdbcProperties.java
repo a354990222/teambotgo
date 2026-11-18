@@ -44,9 +44,9 @@ public class ChaosAuditJdbcProperties {
     private boolean failFast = false;
 
     /**
-     * 是否在 REQUIRES_NEW 独立事务中写入审计。
+     * 是否使用 REQUIRES_NEW 保存拒绝、失败或无业务事务的审计；已有事务中的 SUCCESS 始终加入业务事务。
      *
-     * <p>默认 {@code true}：避免业务回滚时审计丢失，以及 PostgreSQL 上审计 SQL 失败导致外层事务进入 aborted 状态。</p>
+     * <p>默认 {@code true}：拒绝和失败审计不随业务回滚丢失；SUCCESS 与业务共同提交或回滚。关键成功审计须同时关闭 async 并开启 fail-fast。</p>
      */
     private boolean independentTransaction = true;
 

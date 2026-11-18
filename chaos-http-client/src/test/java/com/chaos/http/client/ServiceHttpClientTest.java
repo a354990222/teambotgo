@@ -116,4 +116,19 @@ class ServiceHttpClientTest {
                     (code, message) -> new IllegalStateException(code + ":" + message));
         }
     }
+
+    @Test
+    void postNetworkFailureMustNotReplayEvenWithRequestKey() {
+        for (String key : new String[] {null, "", "request-1"}) {
+            RestTemplate rest = new RestTemplate();
+            MockRestServiceServer server = MockRestServiceServer.bindTo(rest).build();
+            server.expect(requestTo("http://foundation/internal/x"))
+                    .andRespond(request -> { throw new java.io.IOException("response lost after commit"); });
+            assertThrows(org.springframework.web.client.ResourceAccessException.class,
+                    () -> new TestClient(rest, fixedToken()).post("/internal/x", Map.of(),
+                            new ParameterizedTypeReference<Map<String, Object>>() { }, key, null, null));
+            server.verify();
+        }
+    }
+
 }

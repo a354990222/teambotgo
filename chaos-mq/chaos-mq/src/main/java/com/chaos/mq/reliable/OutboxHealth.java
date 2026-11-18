@@ -44,7 +44,7 @@ public final class OutboxHealth {
         long pending;
         long deadLetter;
         try {
-            pending = repository.countByStatus(ReliableMessageStatus.PENDING);
+            pending = repository.countUnsent();
             deadLetter = repository.countByStatus(ReliableMessageStatus.DEAD_LETTER);
         } catch (RuntimeException ex) {
             return new Snapshot(Status.DOWN, -1L, -1L,

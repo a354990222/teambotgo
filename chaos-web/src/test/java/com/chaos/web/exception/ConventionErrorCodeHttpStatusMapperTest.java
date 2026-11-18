@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -26,11 +28,29 @@ class ConventionErrorCodeHttpStatusMapperTest {
         assertEquals(HttpStatus.BAD_REQUEST, mapper.resolve("SVC_ORDER_INVALID"));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "SVC_ORDER_CONFLICT, CONFLICT",
+            "SVC_ORDER_CONSTRAINT_CONFLICT, CONFLICT",
+            "SVC_ORDER_CONCURRENT_MODIFICATION, CONFLICT",
+            "SVC_DUPLICATE_NAME, CONFLICT",
+            "SVC_UNAUTHORIZED, UNAUTHORIZED",
+            "SVC_INVALID_TOKEN, UNAUTHORIZED",
+            "SVC_RATE_LIMITED, TOO_MANY_REQUESTS",
+            "SVC_UPSTREAM_UNAVAILABLE, SERVICE_UNAVAILABLE",
+            "SVC_UPSTREAM_TIMEOUT, SERVICE_UNAVAILABLE"
+    })
+    void shouldMapAdditionalSuffixesAndPreserveLegacyConflicts(String code, HttpStatus expected) {
+        assertEquals(expected, mapper.resolve(code));
+    }
+
     /**
      * 其他服务的错误码不参与映射。
      */
     @Test
     void shouldIgnoreForeignCodes() {
         assertNull(mapper.resolve("OTHER_NOT_FOUND"));
+        assertNull(mapper.resolve(null));
+        assertNull(new ConventionErrorCodeHttpStatusMapper(null).resolve("SVC_NOT_FOUND"));
     }
 }

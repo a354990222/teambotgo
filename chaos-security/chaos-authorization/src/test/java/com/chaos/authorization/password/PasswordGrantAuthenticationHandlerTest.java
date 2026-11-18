@@ -201,7 +201,7 @@ class PasswordGrantAuthenticationHandlerTest {
         @Override
         public LoginUser authenticateByUsername(String username, String password) {
             calls++;
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+            throw new BadCredentialsException("invalid credentials");
         }
 
         @Override
@@ -281,4 +281,22 @@ class PasswordGrantAuthenticationHandlerTest {
             return null;
         }
     }
+
+    @Test
+    void infrastructureFailuresNeverCountAsInvalidPasswords() {
+        var limiter = org.mockito.Mockito.mock(com.chaos.authorization.password.LoginFailureLimiter.class);
+        var users = org.mockito.Mockito.mock(ChaosAuthorizationUserService.class);
+        var handler = new PasswordGrantAuthenticationHandler(users, null, limiter);
+        var serverError = new OAuth2AuthenticationException(new org.springframework.security.oauth2.core.OAuth2Error("server_error"));
+        org.mockito.Mockito.when(users.authenticateByUsername("", "alice", "correct"))
+                .thenThrow(serverError)
+                .thenThrow(new org.springframework.security.authentication.InternalAuthenticationServiceException("db failed"));
+        for (int attempt = 0; attempt < 2; attempt++) {
+            assertThatThrownBy(() -> handler.authenticate(Map.of("username", "alice", "password", "correct")))
+                    .isInstanceOfSatisfying(OAuth2AuthenticationException.class,
+                            ex -> assertThat(ex.getError().getErrorCode()).isEqualTo("server_error"));
+        }
+        org.mockito.Mockito.verify(limiter, org.mockito.Mockito.never()).recordFailure(org.mockito.ArgumentMatchers.anyString());
+    }
+
 }

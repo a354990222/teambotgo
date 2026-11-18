@@ -138,8 +138,8 @@ public class ChaosMqOutboxAutoConfiguration {
         Gauge chaosMqOutboxPendingGauge(OutboxMessageRepository repository, MeterRegistry meterRegistry) {
             // countByStatus 不支持时返回 -1，Prometheus 上表现为负值，一眼能看出"没接上"而不是"积压为 0"。
             return Gauge.builder(ChaosMeterNames.MQ_OUTBOX_PENDING,
-                            repository, r -> r.countByStatus(ReliableMessageStatus.PENDING))
-                    .description("Outbox messages waiting to be dispatched")
+                            repository, OutboxMessageRepository::countUnsent)
+                    .description("Outbox messages not yet completed (pending, retrying, sending)")
                     .register(meterRegistry);
         }
     }

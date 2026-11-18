@@ -109,13 +109,29 @@ class GlobalExceptionHandlerTest {
     }
 
     /**
-     * 可预期的参数拒绝应返回 400 并保留业务文案，而不是被兜底成 500。
+     * 未知参数异常可能来自内部数据损坏，返回固定 500。
      */
     @Test
-    void shouldMapIllegalArgumentExceptionToBadRequest() throws Exception {
+    void shouldMapUnclassifiedIllegalArgumentToInternalError() throws Exception {
         mockMvc.perform(get("/invalid-argument"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("400"))
-                .andExpect(jsonPath("$.message").value("quantities must be positive"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().string(not(containsString("quantities must be positive"))));
+    }
+
+    @Test
+    void malformedBodyDoesNotLogRejectedValue() {
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            new GlobalExceptionHandler().handleMessageNotReadable(new org.springframework.http.converter.HttpMessageNotReadableException(
+                    "SECRET body", new IllegalArgumentException("SECRET password"), new org.springframework.mock.http.MockHttpInputMessage(new byte[0])));
+            org.assertj.core.api.Assertions.assertThat(appender.list).isNotEmpty().allSatisfy(event ->
+                    org.assertj.core.api.Assertions.assertThat(event.getFormattedMessage()).doesNotContain("SECRET"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 }

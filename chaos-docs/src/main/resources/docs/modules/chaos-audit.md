@@ -133,3 +133,5 @@ chaos:
 `chaos.audit.jdbc.application-generated-id` 默认 `false`，保持数据库生成主键的兼容行为。设为 `true` 时必须存在 `com.chaos.core.id.IdGenerator` Bean，审计 INSERT 显式写入 `id`；表须提供 BIGINT id 列，框架不会自动迁移数据库。缺少生成器时启动失败并提示修复配置。
 
 此模式仍使用同一个 `JdbcAuditEventPublisher`，保留脱敏、长度裁剪、JSON 编码、失败策略、REQUIRES_NEW 事务及异步/指标包装。直接构造发布器时可用新增的七参数构造器传入 IdGenerator，原构造器行为不变。
+
+异常分类、审计事务与安全诊断的当前约定见 [异常可靠性](../exception-reliability.md)。

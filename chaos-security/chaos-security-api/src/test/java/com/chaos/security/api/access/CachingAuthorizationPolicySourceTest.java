@@ -94,10 +94,10 @@ class CachingAuthorizationPolicySourceTest {
     }
 
     /**
-     * 拉取失败时应继续使用旧快照，并把失败交给 failureHandler 上报，而不是让策略凭空消失。
+     * 拉取失败后不续期旧快照，持续失败始终拒绝。
      */
     @Test
-    void shouldServeStaleSnapshotWhenReloadFails() {
+    void shouldRejectExpiredSnapshotWhenReloadFails() {
         AtomicInteger attempts = new AtomicInteger();
         AuthorizationPolicy policy = policy();
         CachingAuthorizationPolicySource source = new CachingAuthorizationPolicySource(
@@ -114,8 +114,10 @@ class CachingAuthorizationPolicySourceTest {
         assertThat(source.policies()).containsExactly(policy);
         now.addAndGet(31_000L);
 
-        assertThat(source.policies()).containsExactly(policy);
-        assertThat(failures).hasSize(1);
+        assertThatThrownBy(source::policies).isInstanceOf(IllegalStateException.class);
+        now.addAndGet(Duration.ofDays(365).toMillis());
+        assertThatThrownBy(source::policies).isInstanceOf(IllegalStateException.class);
+        assertThat(failures).hasSize(2);
         assertThat(source.cachedSize()).isEqualTo(1);
     }
 

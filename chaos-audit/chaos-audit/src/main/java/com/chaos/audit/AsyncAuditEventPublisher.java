@@ -135,11 +135,12 @@ public class AsyncAuditEventPublisher implements AuditEventPublisher, AutoClosea
      */
     private void publishSafely(AuditEvent event) {
         try {
-            delegate.publish(event);
-            metrics.increment(ChaosMeterNames.AUDIT_EVENTS, ChaosMeterNames.TAG_OUTCOME, "published");
+            boolean published = delegate.publishWithOutcome(event);
+            metrics.increment(ChaosMeterNames.AUDIT_EVENTS, ChaosMeterNames.TAG_OUTCOME,
+                    published ? "published" : "failed");
         } catch (RuntimeException ex) {
             metrics.increment(ChaosMeterNames.AUDIT_EVENTS, ChaosMeterNames.TAG_OUTCOME, "failed");
-            log.warn("Failed to publish audit event, action={}: {}", event.action(), ex.getMessage());
+            log.warn("Failed to publish audit event, action={}, exceptionType={}", event.action(), ex.getClass().getName());
         }
     }
 

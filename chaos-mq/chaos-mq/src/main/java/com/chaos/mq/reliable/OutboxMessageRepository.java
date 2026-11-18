@@ -107,4 +107,18 @@ public interface OutboxMessageRepository {
     default int deleteSentMessagesBefore(Instant sentBefore, int limit) {
         return 0;
     }
+
+    /** 待完成的消息总数，包含重试和已抢占任务；任一状态无法统计时返回 -1。 */
+    default long countUnsent() {
+        long total = 0;
+        for (ReliableMessageStatus status : new ReliableMessageStatus[] {
+                ReliableMessageStatus.PENDING, ReliableMessageStatus.RETRYING, ReliableMessageStatus.SENDING}) {
+            long count = countByStatus(status);
+            if (count < 0) {
+                return -1;
+            }
+            total += count;
+        }
+        return total;
+    }
 }

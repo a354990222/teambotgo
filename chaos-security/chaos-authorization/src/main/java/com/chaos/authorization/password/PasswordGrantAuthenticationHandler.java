@@ -8,6 +8,9 @@ import com.chaos.security.api.auth.LoginUser;
 import java.util.Locale;
 import java.util.Map;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -105,8 +108,13 @@ public class PasswordGrantAuthenticationHandler implements ChaosGrantAuthenticat
         try {
             user = userService.authenticateByUsername(tenant, username, password);
         } catch (RuntimeException ex) {
-            if (loginFailureLimiter != null) {
+            if (loginFailureLimiter != null
+                    && (ex instanceof BadCredentialsException || ex instanceof UsernameNotFoundException)) {
                 loginFailureLimiter.recordFailure(lockKey);
+            }
+            if (ex instanceof AuthenticationServiceException) {
+                throw new OAuth2AuthenticationException(new OAuth2Error(
+                        OAuth2ErrorCodes.SERVER_ERROR, "Authentication service temporarily unavailable", null), ex);
             }
             if (ex instanceof AuthenticationException
                     && !(ex instanceof OAuth2AuthenticationException)) {

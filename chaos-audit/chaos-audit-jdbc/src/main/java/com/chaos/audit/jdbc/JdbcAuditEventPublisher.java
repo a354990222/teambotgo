@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chaos.audit.AuditAttributeSanitizer;
 import com.chaos.audit.AuditEvent;
+import com.chaos.audit.AuditOutcome;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.chaos.audit.AuditEventPublisher;
 import com.chaos.audit.DefaultAuditAttributeSanitizer;
 import java.sql.Timestamp;
@@ -26,7 +28,7 @@ import org.springframework.transaction.support.TransactionOperations;
  *
  * <p>可靠性设计：</p>
  * <ul>
- *     <li><b>独立事务</b>：传入 {@code REQUIRES_NEW} 的 {@link TransactionOperations} 时，审计写入不再加入调用方事务。
+ *     <li><b>独立事务</b>：传入 {@code REQUIRES_NEW} 的 {@link TransactionOperations} 时，FAILURE/DENIED 审计写入不再加入调用方事务；SUCCESS 仍加入已有业务事务，避免回滚后留下成功记录。
  *     原实现同步加入业务事务，业务回滚时 FAILURE/DENIED 审计一起丢失；在 PostgreSQL 上审计 SQL 失败后
  *     外层事务进入 aborted 状态，即使异常被吞掉，后续业务 SQL 也全部失败。</li>
  *     <li><b>字段截断</b>：写入前按表结构长度截断，避免 MySQL 严格模式下超长 URI/reason 导致写入失败而丢审计。</li>
@@ -103,7 +105,7 @@ public class JdbcAuditEventPublisher implements AuditEventPublisher {
      * 使用完整参数创建发布器。
      *
      * @param transactionOperations 审计写入使用的事务模板，推荐传播行为为 {@code REQUIRES_NEW}；
-     *                              为 {@code null} 时直接执行（加入调用方事务）
+     *                              为 {@code null} 时直接执行（加入调用方事务）；SUCCESS 在已有事务时总是加入该事务
      */
     public JdbcAuditEventPublisher(
             JdbcOperations jdbcOperations,
@@ -142,16 +144,25 @@ public class JdbcAuditEventPublisher implements AuditEventPublisher {
      */
     @Override
     public void publish(AuditEvent event) {
+        publishWithOutcome(event);
+    }
+
+    @Override
+    public boolean publishWithOutcome(AuditEvent event) {
         Objects.requireNonNull(event, "event must not be null");
         try {
-            if (transactionOperations == null) {
+            // 成功审计不能先于业务提交；失败/拒绝审计仍由独立事务保留。
+            if (transactionOperations == null || (event.outcome() == AuditOutcome.SUCCESS
+                    && TransactionSynchronizationManager.isActualTransactionActive())) {
                 insert(event);
             } else {
                 transactionOperations.executeWithoutResult(status -> insert(event));
             }
         } catch (RuntimeException ex) {
             handlePublishFailure(event, ex);
+            return false;
         }
+        return true;
     }
 
     /**
@@ -179,7 +190,9 @@ public class JdbcAuditEventPublisher implements AuditEventPublisher {
                 Timestamp.from(event.occurredAt()),
                 toJson(attributeSanitizer.sanitize(event.attributes()))
         ));
-        jdbcOperations.update(insertSql, arguments.toArray());
+        if (jdbcOperations.update(insertSql, arguments.toArray()) != 1) {
+            throw new org.springframework.dao.DataIntegrityViolationException("Audit event insert affected unexpected rows");
+        }
     }
 
     /**
@@ -203,11 +216,7 @@ public class JdbcAuditEventPublisher implements AuditEventPublisher {
         try {
             return objectMapper.writeValueAsString(attributes == null ? Map.of() : attributes);
         } catch (JsonProcessingException ex) {
-            if (failFast) {
-                throw new IllegalStateException("审计扩展属性序列化失败", ex);
-            }
-            log.warn("审计扩展属性序列化失败，已使用空 JSON 兜底", ex);
-            return "{}";
+            throw new IllegalStateException("审计扩展属性序列化失败", ex);
         }
     }
 
@@ -216,10 +225,10 @@ public class JdbcAuditEventPublisher implements AuditEventPublisher {
             throw ex;
         }
         log.warn(
-                "审计事件落库失败，已按非 fail-fast 策略忽略。action={} traceId={}",
+                "审计事件落库失败。action={} traceId={} exceptionType={}",
                 event.action(),
                 event.traceId(),
-                ex
+                ex.getClass().getName()
         );
     }
 

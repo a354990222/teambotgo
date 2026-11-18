@@ -41,7 +41,7 @@ class JdbcAuditEventPublisherTest {
         var publisher = new JdbcAuditEventPublisher(jdbc, new ObjectMapper(), "events", true,
                 new DefaultAuditAttributeSanitizer(), independent, ids::getAndIncrement);
         new TransactionTemplate(manager).executeWithoutResult(status -> {
-            publisher.publish(AuditEvent.builder(AuditAction.AUTH_LOGIN_SUCCESS, AuditOutcome.SUCCESS)
+            publisher.publish(AuditEvent.builder(AuditAction.AUTH_LOGIN_FAILURE, AuditOutcome.FAILURE)
                     .attributes(Map.of("password", "synthetic-secret")).build());
             status.setRollbackOnly();
         });
@@ -167,5 +167,50 @@ class JdbcAuditEventPublisherTest {
         dataSource.setUsername("sa");
         dataSource.setPassword("");
         return dataSource;
+    }
+
+    @Test
+    void successAuditRollsBackWithBusinessButCommitsOnSuccess() throws Exception {
+        JdbcTemplate jdbc = createJdbcTemplate();
+        var manager = new DataSourceTransactionManager(jdbc.getDataSource());
+        var independent = new TransactionTemplate(manager);
+        independent.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        var publisher = new JdbcAuditEventPublisher(jdbc, new ObjectMapper(), "chaos_audit_event", true,
+                new DefaultAuditAttributeSanitizer(), independent);
+        var event = AuditEvent.builder("business.change", AuditOutcome.SUCCESS).build();
+        new TransactionTemplate(manager).executeWithoutResult(status -> {
+            publisher.publish(event);
+            status.setRollbackOnly();
+        });
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chaos_audit_event WHERE action='business.change'", Integer.class)).isZero();
+        new TransactionTemplate(manager).executeWithoutResult(status -> publisher.publish(event));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chaos_audit_event WHERE action='business.change'", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void bestEffortFailureReportsFalseToAsyncWrapper() {
+        var jdbc = org.mockito.Mockito.mock(org.springframework.jdbc.core.JdbcOperations.class);
+        org.mockito.Mockito.when(jdbc.update(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(Object[].class)))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("secret"));
+        var publisher = new JdbcAuditEventPublisher(jdbc, new ObjectMapper());
+        assertThat(publisher.publishWithOutcome(AuditEvent.builder("test", AuditOutcome.FAILURE).build())).isFalse();
+    }
+
+
+    @Test
+    void asyncMetricsCountRejectedJdbcWriteAsFailure() {
+        var jdbc = org.mockito.Mockito.mock(org.springframework.jdbc.core.JdbcOperations.class);
+        org.mockito.Mockito.when(jdbc.update(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(Object[].class)))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("secret"));
+        var metrics = org.mockito.Mockito.mock(com.chaos.core.metrics.ChaosMetrics.class);
+        try (var async = new com.chaos.audit.AsyncAuditEventPublisher(new JdbcAuditEventPublisher(jdbc, new ObjectMapper()), 8, metrics)) {
+            async.publish(AuditEvent.builder("test", AuditOutcome.FAILURE).build());
+        }
+        org.mockito.Mockito.verify(metrics).increment(com.chaos.core.metrics.ChaosMeterNames.AUDIT_EVENTS,
+                com.chaos.core.metrics.ChaosMeterNames.TAG_OUTCOME, "failed");
+        org.mockito.Mockito.verify(metrics, org.mockito.Mockito.never()).increment(com.chaos.core.metrics.ChaosMeterNames.AUDIT_EVENTS,
+                com.chaos.core.metrics.ChaosMeterNames.TAG_OUTCOME, "published");
     }
 }

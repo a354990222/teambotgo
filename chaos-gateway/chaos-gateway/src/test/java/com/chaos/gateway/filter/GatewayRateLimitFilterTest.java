@@ -154,4 +154,23 @@ class GatewayRateLimitFilterTest {
                 .header("X-Tenant-Id", "tenant-a"));
     }
 
+
+    @Test
+    void downstreamFailureMustNotBeReplayedOrReclassified() {
+        for (boolean failOpen : List.of(true, false)) {
+            var properties = new ChaosGatewayProperties();
+            properties.getRateLimit().setEnabled(true);
+            properties.getRateLimit().setFailOpen(failOpen);
+            var calls = new java.util.concurrent.atomic.AtomicInteger();
+            var failure = new IllegalStateException("downstream failed");
+            var exchange = exchange("/api/orders");
+            StepVerifier.create(filter(properties, context -> Mono.just(true)).filter(exchange, next -> {
+                calls.incrementAndGet();
+                return Mono.error(failure);
+            })).expectErrorMatches(error -> error == failure).verify();
+            assertThat(calls.get()).isEqualTo(1);
+            assertThat(exchange.getResponse().getStatusCode()).isNull();
+        }
+    }
+
 }

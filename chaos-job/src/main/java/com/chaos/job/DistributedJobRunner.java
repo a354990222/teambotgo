@@ -98,6 +98,7 @@ public class DistributedJobRunner {
             handle = acquired.get();
         }
         TraceContextSnapshot previous = TraceContext.capture();
+        Throwable primaryFailure = null;
         try {
             TraceContext.start(null, null, null, null, appName);
             MdcSupport.putIfNotBlank(MDC_JOB_NAME, jobName);
@@ -107,15 +108,25 @@ public class DistributedJobRunner {
             executor.execute(context);
             log.info("Job finished, jobName={}, costMs={}", jobName, (System.nanoTime() - start) / 1_000_000);
             return true;
-        } catch (RuntimeException ex) {
+        } catch (RuntimeException | Error ex) {
+            primaryFailure = ex;
             log.error("Job failed, jobName={}", jobName, ex);
             throw ex;
         } finally {
-            if (handle != null) {
-                handle.unlock();
+            try {
+                if (handle != null) {
+                    handle.unlock();
+                }
+            } catch (RuntimeException | Error cleanupFailure) {
+                if (primaryFailure == null) {
+                    throw cleanupFailure;
+                }
+                if (cleanupFailure != primaryFailure) {
+                    primaryFailure.addSuppressed(cleanupFailure);
+                }
+            } finally {
+                TraceContext.restore(previous);
             }
-            // 恢复进入前的 RequestContext 与 MDC（包括移除 jobName）。
-            TraceContext.restore(previous);
         }
     }
 }

@@ -71,7 +71,16 @@ public class GatewayRateLimitFilter implements GlobalFilter, Ordered {
         }
         RateLimitRule rule = resolveRule(exchange);
         String key = keyResolver.resolve(exchange, rule.id(), rule.keyTypes());
-        return rateLimiter.tryAcquire(new RateLimitContext(key, rule.permitsPerSecond()))
+        return Mono.defer(() -> rateLimiter.tryAcquire(new RateLimitContext(key, rule.permitsPerSecond())))
+                .onErrorResume(ex -> {
+                    boolean failOpen = properties.getRateLimit().isFailOpen();
+                    log.warn("Rate limiter unavailable, rule={}, failOpen={}, exceptionType={}",
+                            rule.id(), failOpen, ex.getClass().getName());
+                    metrics.increment(ChaosMeterNames.RATE_LIMIT_ERRORS,
+                            ChaosMeterNames.TAG_SOURCE, "gateway",
+                            ChaosMeterNames.TAG_OUTCOME, failOpen ? "fail-open" : "fail-closed");
+                    return Mono.just(failOpen);
+                })
                 .flatMap(allowed -> {
                     if (allowed) {
                         return chain.filter(exchange);
@@ -79,18 +88,6 @@ public class GatewayRateLimitFilter implements GlobalFilter, Ordered {
                     metrics.increment(ChaosMeterNames.RATE_LIMIT_REJECTED,
                             ChaosMeterNames.TAG_SOURCE, "gateway",
                             ChaosMeterNames.TAG_DIMENSION, rule.id());
-                    return GatewayErrorResponseWriter.tooManyRequests(exchange);
-                })
-                .onErrorResume(ex -> {
-                    // fail-open 时限流会静默失效，必须至少留下告警日志和指标供监控采集。
-                    boolean failOpen = properties.getRateLimit().isFailOpen();
-                    log.warn("Rate limiter error for key [{}], failOpen={}: {}", key, failOpen, ex.getMessage());
-                    metrics.increment(ChaosMeterNames.RATE_LIMIT_ERRORS,
-                            ChaosMeterNames.TAG_SOURCE, "gateway",
-                            ChaosMeterNames.TAG_OUTCOME, failOpen ? "fail-open" : "fail-closed");
-                    if (failOpen) {
-                        return chain.filter(exchange);
-                    }
                     return GatewayErrorResponseWriter.tooManyRequests(exchange);
                 });
     }

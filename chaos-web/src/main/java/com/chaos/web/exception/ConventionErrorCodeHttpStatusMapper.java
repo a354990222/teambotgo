@@ -7,7 +7,8 @@ import org.springframework.http.HttpStatus;
  * 按错误码后缀约定映射 HTTP 状态。
  *
  * <p>只处理调用方指定的业务错误码前缀：{@code _NOT_FOUND} → 404、{@code _FORBIDDEN} → 403、
- * 重复与并发冲突 → 409，其余业务拒绝 → 400。返回 {@code null} 时由框架默认映射处理。</p>
+ * 重复与并发冲突 → 409、认证失败 → 401、限流 → 429、依赖不可用或超时 → 503，
+ * 其余业务拒绝 → 400。返回 {@code null} 时由框架默认映射处理。</p>
  */
 public final class ConventionErrorCodeHttpStatusMapper implements ErrorCodeHttpStatusMapper {
 
@@ -35,10 +36,18 @@ public final class ConventionErrorCodeHttpStatusMapper implements ErrorCodeHttpS
         }
         if (code.endsWith("_DUPLICATE")
                 || code.contains("_DUPLICATE_")
-                || code.endsWith("_VERSION_CONFLICT")
-                || code.endsWith("_CONCURRENT_MODIFICATION")
-                || code.endsWith("_CONSTRAINT_CONFLICT")) {
+                || code.endsWith("_CONFLICT")
+                || code.endsWith("_CONCURRENT_MODIFICATION")) {
             return HttpStatus.CONFLICT;
+        }
+        if (code.endsWith("_UNAUTHORIZED") || code.endsWith("_INVALID_TOKEN")) {
+            return HttpStatus.UNAUTHORIZED;
+        }
+        if (code.endsWith("_RATE_LIMITED")) {
+            return HttpStatus.TOO_MANY_REQUESTS;
+        }
+        if (code.endsWith("_UNAVAILABLE") || code.endsWith("_TIMEOUT")) {
+            return HttpStatus.SERVICE_UNAVAILABLE;
         }
         return HttpStatus.BAD_REQUEST;
     }

@@ -1,5 +1,6 @@
 package com.chaos.web.exception;
 
+import com.chaos.core.exception.SafeExceptionDiagnostics;
 import com.chaos.core.exception.ChaosException;
 import com.chaos.core.exception.CommonErrorCode;
 import com.chaos.core.exception.ErrorCode;
@@ -108,7 +109,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Void>> handleChaosException(ChaosException ex) {
         HttpStatus status = resolveStatus(ex.errorCode().code());
         if (status.is5xxServerError()) {
-            log.error("Server error: code=" + ex.errorCode().code(), ex);
+            log.error("Server error: code={} diagnostic={}", ex.errorCode().code(), SafeExceptionDiagnostics.describe(ex));
             return ResponseEntity.status(status).body(failure(ex.errorCode()));
         }
         log.debug("Business rejected: code={}, message={}", ex.errorCode().code(), ex.getMessage());
@@ -193,7 +194,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Result<Void>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
-        log.warn("Request body parse failed: {}", ex.getMostSpecificCause().getMessage());
+        log.warn("Request body parse failed, exceptionType={}", ex.getMostSpecificCause().getClass().getName());
         return ResponseEntity
                 .badRequest()
                 .body(badRequest(messageResolver.resolve(ChaosMessageKeys.MALFORMED_BODY, "Malformed request body")));
@@ -235,17 +236,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(failure(CommonErrorCode.NOT_FOUND));
     }
 
-    /**
-     * 处理调用方可预期的参数或状态拒绝。
-     *
-     * <p>领域与应用层用 {@link IllegalArgumentException} 表达输入不合法；不在此转换为 400，
-     * 就会被兜底成 500，让调用方误以为是服务故障。这里只记录 debug 日志，不回显堆栈。</p>
-     */
+    /** 未分类的参数异常可能来自内部数据损坏，不能当作客户端校验失败或回显原文。 */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Result<Void>> handleIllegalArgument(IllegalArgumentException ex) {
-        log.debug("Invalid argument: {}", ex.getMessage());
-        return ResponseEntity.badRequest()
-                .body(Result.failure(CommonErrorCode.BAD_REQUEST, ex.getMessage()));
+        log.error("Unclassified argument failure, exceptionType={}, stack={}",
+                ex.getClass().getName(), java.util.Arrays.toString(ex.getStackTrace()));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(failure(CommonErrorCode.INTERNAL_ERROR));
     }
 
     /**
@@ -261,7 +258,7 @@ public class GlobalExceptionHandler {
         if (ex instanceof ErrorResponse errorResponse) {
             return handleErrorResponse(ex, errorResponse.getStatusCode());
         }
-        log.error("Unhandled exception", ex);
+        log.error("Unhandled exception: {}", SafeExceptionDiagnostics.describe(ex));
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(failure(CommonErrorCode.INTERNAL_ERROR));
@@ -273,7 +270,7 @@ public class GlobalExceptionHandler {
     private ResponseEntity<Result<Void>> handleErrorResponse(Exception ex, HttpStatusCode statusCode) {
         ErrorCode errorCode = errorCodeFor(statusCode);
         if (statusCode.is5xxServerError()) {
-            log.error("Framework server error: status=" + statusCode.value(), ex);
+            log.error("Framework server error: status={} diagnostic={}", statusCode.value(), SafeExceptionDiagnostics.describe(ex));
         } else {
             log.debug("Framework client error: status={}, exception={}", statusCode.value(), ex.toString());
         }

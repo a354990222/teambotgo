@@ -219,3 +219,21 @@ chaos:
 - 引入 `chaos-redis-starter` 后会自动注册 Redis JWT 黑名单撤销服务；Redis 自动装配显式先于安全自动装配执行，避免默认的 `NoopJwtRevocationService` 抢先注册。
 - 授权中心启用 JWT 互踢时，资源服务器必须开启撤销检查并共享同一个 Redis 黑名单。
 - 授权中心调用 `/oauth2/revoke` 撤销 access token 后，资源服务器会通过同一黑名单立即拒绝该 JWT。
+
+## 服务 JWT 校验
+
+`com.chaos.security.service.ServiceTokenGuard.require(scope)` 用于 Servlet 内部接口，返回调用方客户端标识。
+前置条件是资源服务器已经完成 JWT 验签、有效期、签发者以及所需受众校验。守卫只读取已认证的
+`JwtAuthenticationToken`，要求 `grantType=client_credentials`、非空 `clientId` 和精确匹配的 scope。
+`scope` 支持 OAuth2 空格分隔字符串和字符串集合；不支持权限通配、逗号分隔或非字符串元素。
+未认证、用户令牌、缺少作用域或客户端标识时抛出 `AccessDeniedException`；调用参数为空或不是单个
+合法 scope 时抛出 `IllegalArgumentException`。业务 scope 值与调用方的资源归属规则由应用定义。
+
+```java
+String caller = ServiceTokenGuard.require("inventory:register");
+```
+
+此守卫不读取请求头委托身份。opaque introspection 后的租户/操作人委托仍使用
+`ServiceDelegationFilter` 与 `ServiceCaller`，不把未知令牌视为服务令牌。
+
+异常分类、审计事务与安全诊断的当前约定见 [异常可靠性](../exception-reliability.md)。

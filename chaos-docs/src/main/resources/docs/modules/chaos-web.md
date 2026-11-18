@@ -272,3 +272,14 @@ curl -H 'traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01' \
 ## 安全 XML 输出
 
 `SecureXmlDocuments.serialize(document)` 将可信 DOM 输出为 UTF-8 XML，每次创建独立 Transformer，禁止外部 DTD 和 stylesheet 访问。与 `parse` 配合使用，业务错误由调用方映射；不执行模板业务校验。
+
+## 业务错误码后缀映射
+
+应用可注册 `new ConventionErrorCodeHttpStatusMapper(code -> code.startsWith("APP_"))`，
+只对匹配谓词的业务码应用约定，其他码和 null 返回 null，继续走框架默认映射。
+支持 `_NOT_FOUND`、`_FORBIDDEN`、`_CONFLICT`/`_DUPLICATE`、`_UNAUTHORIZED`/`_INVALID_TOKEN`、
+`_RATE_LIMITED`、`_UNAVAILABLE`/`_TIMEOUT`，分别映射 404、403、409、401、429、503；其余业务拒绝为 400。
+保留已有 `_DUPLICATE_` 中缀和 `_CONCURRENT_MODIFICATION` 冲突映射。映射器只选择 HTTP 状态，
+限流重试时间及 Retry-After 响应头由限流实现提供。
+
+异常分类、审计事务与安全诊断的当前约定见 [异常可靠性](../exception-reliability.md)。

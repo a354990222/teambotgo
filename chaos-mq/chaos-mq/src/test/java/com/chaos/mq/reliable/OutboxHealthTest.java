@@ -34,7 +34,11 @@ class OutboxHealthTest {
             if (failure != null) {
                 throw failure;
             }
-            return status == ReliableMessageStatus.PENDING ? pending : deadLetter;
+            return switch (status) {
+                case PENDING -> pending;
+                case DEAD_LETTER -> deadLetter;
+                default -> 0;
+            };
         }
 
         @Override
@@ -175,5 +179,17 @@ class OutboxHealthTest {
 
         assertThat(legacy.countByStatus(ReliableMessageStatus.PENDING)).isEqualTo(-1L);
         assertThat(new OutboxHealth(legacy, 100, 10).check().status()).isEqualTo(OutboxHealth.Status.UNKNOWN);
+    }
+
+    @Test
+    void retryingAndClaimedMessagesCountAsBacklog() {
+        var repository = org.mockito.Mockito.mock(OutboxMessageRepository.class);
+        org.mockito.Mockito.when(repository.countUnsent()).thenCallRealMethod();
+        org.mockito.Mockito.when(repository.countByStatus(ReliableMessageStatus.PENDING)).thenReturn(0L);
+        org.mockito.Mockito.when(repository.countByStatus(ReliableMessageStatus.RETRYING)).thenReturn(7L);
+        org.mockito.Mockito.when(repository.countByStatus(ReliableMessageStatus.SENDING)).thenReturn(4L);
+        var snapshot = new OutboxHealth(repository, 10, 1).check();
+        assertThat(snapshot.pending()).isEqualTo(11L);
+        assertThat(snapshot.status()).isEqualTo(OutboxHealth.Status.DOWN);
     }
 }

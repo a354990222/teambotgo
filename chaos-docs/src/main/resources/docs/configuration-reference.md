@@ -43,7 +43,7 @@ python3 scripts/generate-configuration-reference.py
 | `chaos.audit.jdbc.application-generated-id` | `Boolean` | `false` | 是否使用 IdGenerator 分配审计主键；默认 false 保留数据库生成主键的行为。启用后必须提供 IdGenerator Bean 和 BIGINT id 列。 |  | `chaos-autoconfigure` |
 | `chaos.audit.jdbc.enabled` | `Boolean` | `false` | 是否启用 JDBC 审计持久化。 |  | `chaos-autoconfigure` |
 | `chaos.audit.jdbc.fail-fast` | `Boolean` | `false` | 落库失败时是否直接抛出异常。 |  | `chaos-autoconfigure` |
-| `chaos.audit.jdbc.independent-transaction` | `Boolean` | `true` | 是否在 REQUIRES_NEW 独立事务中写入审计。 默认 `true`：避免业务回滚时审计丢失，以及 PostgreSQL 上审计 SQL 失败导致外层事务进入 aborted 状态。 |  | `chaos-autoconfigure` |
+| `chaos.audit.jdbc.independent-transaction` | `Boolean` | `true` | 是否使用 REQUIRES_NEW 保存拒绝、失败或无业务事务的审计；已有事务中的 SUCCESS 始终加入业务事务。 默认 `true`：拒绝和失败审计不随业务回滚丢失；SUCCESS 与业务共同提交或回滚。关键成功审计须同时关闭 async 并开启 fail-fast。 |  | `chaos-autoconfigure` |
 | `chaos.audit.jdbc.mask-value` | `String` |  | 敏感属性脱敏占位值。 |  | `chaos-autoconfigure` |
 | `chaos.audit.jdbc.sensitive-keywords` | `List<String>` |  | 按属性名包含匹配的敏感字段关键字（属性名去掉 `_ - .` 并转小写后匹配）。 `code`、`pin` 等短关键字按精确匹配内置处理，不要加入该列表，否则会误伤 `orderCode` 等字段。 |  | `chaos-autoconfigure` |
 | `chaos.audit.jdbc.table-name` | `String` |  | 审计事件表名，支持 `table` 或 `schema.table` 格式。 |  | `chaos-autoconfigure` |
