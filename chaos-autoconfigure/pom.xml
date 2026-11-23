@@ -52,11 +52,6 @@
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-audit-jdbc</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
             <artifactId>chaos-authorization</artifactId>
             <optional>true</optional>
         </dependency>
@@ -72,47 +67,12 @@
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-gateway-nacos</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
-            <artifactId>chaos-job</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
             <artifactId>chaos-process</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-process-jdbc</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
-            <artifactId>chaos-process-redis</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
             <artifactId>chaos-mq</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
-            <artifactId>chaos-mq-jdbc</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
-            <artifactId>chaos-mq-kafka</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
-            <artifactId>chaos-mq-rocketmq</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -143,16 +103,6 @@
         <dependency>
             <groupId>com.chaos</groupId>
             <artifactId>chaos-service</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
-            <artifactId>chaos-storage-minio</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
-            <artifactId>chaos-storage-oss</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>

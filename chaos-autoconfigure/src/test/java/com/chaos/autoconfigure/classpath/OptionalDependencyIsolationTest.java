@@ -51,7 +51,7 @@ class OptionalDependencyIsolationTest {
     /**
      * chaos 功能库场景的下限。低于这个数说明类路径解析出了问题，而不是模块真的变少了。
      */
-    private static final int MIN_CHAOS_LIBRARY_SCENARIOS = 20;
+    private static final int MIN_CHAOS_LIBRARY_SCENARIOS = 18;
 
     private static final String CHAOS_IMPORTS =
             "META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports";

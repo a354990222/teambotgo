@@ -9,7 +9,7 @@ architecture and coding conventions. Read it first. It covers:
   coverage, release governance, structure governance, configuration-reference regeneration, archetype verification.
 - **Versions and dependency management** — `${revision}` in `.mvn/maven.config`, `chaos-dependencies` as the
   single version source, the `optional` rule in `chaos-autoconfigure`, the configuration-processor requirement.
-- **Architecture** — the module map (`chaos-foundation/`, `chaos-observability/`, `chaos-audit/`, `chaos-security/`,
+- **Architecture** — the module map (`chaos-foundation/`, `chaos-trace/`, `chaos-audit/`, `chaos-security/`,
   `chaos-gateway/`, `chaos-data/`, `chaos-mq/`, `chaos-storage/`, …), the ten dependency-direction rules enforced by
   `DependencyDirectionArchitectureTest` / `LayerBoundaryArchitectureTest`, the auto-configuration and starter pattern,
   configuration usability rules, archetypes and example services.

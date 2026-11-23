@@ -29,12 +29,12 @@
 | `chaos.web.idempotent.replay` | chaos-web | chaos-web-starter | `enabled`、`max-body-size`、`stored-headers`、`max-local-records` | **`false`**、`64KB`、`Location`、`1000` | 开启后重复请求回放首次响应而不是 409；代价是写请求响应体多缓存一份、每个幂等请求多一次快照查询；集群必须配 Redis，内存快照在生产模式下会被阻断启动 |
 | `chaos.web.i18n` | chaos-web | chaos-web-starter | `enabled`、`default-locale` | `true`、空（按 `Accept-Language`） | 关闭后只用错误码默认消息；只提供单一语言的内部系统建议固定 `default-locale`，避免响应语言随客户端变化 |
 | `chaos.web.reactive` | chaos-web-reactive | chaos-cloud-reactive-starter | `enabled`、`response-wrap-enabled`、`trace-enabled`、`xss-enabled`、`rate-limit.*`、`idempotent.*` | `true`、`true`、`true`、`true`、100 req/s、10m | 面向 WebFlux 业务服务（在 Gateway 存在时自动让位）；生产环境无 `ReactiveStringRedisTemplate` 时会拦截内存限流与幂等实现 |
-| `chaos.audit.async` | chaos-autoconfigure | chaos-audit-starter | `enabled`、`queue-capacity` | **`false`**、`10000` | 配合 chaos-audit-jdbc 时强烈建议开启：同步模式下每次登录/权限拒绝都是请求线程内一次 DB 写入；队列满时丢弃并计指标，不阻塞业务 |
+| `chaos.audit.async` | chaos-audit / chaos-autoconfigure | `chaos-web-service-starter` / `chaos-security-starter` | `enabled`、`queue-capacity` | **`false`**、`10000` | 开启 JDBC 审计落库时强烈建议开启：同步模式下每次登录/权限拒绝都是请求线程内一次 DB 写入；队列满时丢弃并计指标，不阻塞业务 |
 | `chaos.mq.outbox.health` | chaos-autoconfigure | chaos-mq-starter | `enabled`、`pending-threshold`、`dead-letter-threshold` | `true`、`10000`、`100` | 超过阈值时 /actuator/health 转 DOWN；仓储不支持统计时为 UNKNOWN 而非 UP |
 | `chaos.service.retry` | chaos-autoconfigure | chaos-application-starter | `max-attempts`、`backoff-ms` | `3`、`100` | 业务异常不应重试 |
 | `chaos.service.context-propagation` | chaos-autoconfigure | chaos-application-starter | `micrometer-enabled` | `false` | 开启后注册到 Micrometer ContextRegistry，Reactor/CompletableFuture 也能传播上下文；与 Micrometer Tracing 的 MDC 管理共存时需验证日志字段 |
-| `chaos.tenant` | chaos-autoconfigure | chaos-tenant-starter | `enabled`、`fail-closed`、`header-name`、`default-isolation-mode` | `true`、`true`、`X-Tenant-Id`、`SHARED_SCHEMA` | 生产应替换真实 `TenantStatusProvider` |
-| `chaos.tenant.servlet-filter` | chaos-autoconfigure | chaos-tenant-starter | `enabled`、`exclude-paths` | `false`、`/actuator/**,/error` | 开启后 Servlet 服务入口也按租户状态 fail-closed 校验，并负责清理 `TenantContext` |
+| `chaos.tenant` | chaos-autoconfigure | `chaos-web-service-starter` / `chaos-gateway-starter` | `enabled`、`fail-closed`、`header-name`、`default-isolation-mode` | `true`、`true`、`X-Tenant-Id`、`SHARED_SCHEMA` | 生产应替换真实 `TenantStatusProvider` |
+| `chaos.tenant.servlet-filter` | chaos-autoconfigure | `chaos-web-service-starter` | `enabled`、`exclude-paths` | `false`、`/actuator/**,/error` | 开启后 Servlet 服务入口也按租户状态 fail-closed 校验，并负责清理 `TenantContext` |
 | `chaos.time` | chaos-autoconfigure | 任意 Chaos starter | `zone-id` | `Asia/Shanghai` | 统一应用 `Clock` 与 `DateTimeUtils` 的业务时区；仅非中国标准时间的应用需要覆盖 |
 | `chaos.process` | chaos-autoconfigure | chaos-process-starter | `enabled`、`engine` | `true`、`MEMORY` | 内存引擎只适合开发和测试，生产模式会阻断启动；生产应用应提供具备事务、乐观锁和幂等唯一约束的 `ProcessEngine` Bean，并设置 `engine=none` |
 
@@ -69,7 +69,7 @@
 | `chaos.gateway.fallback` | chaos-gateway | chaos-gateway-starter | `enabled`、`include-unhandled` | `true`、`true` | 完全接管异常响应时可覆盖处理器 |
 | `chaos.gateway.resilience` | chaos-gateway | chaos-gateway-starter | `enabled`、`failure-rate-threshold-pct`、`sliding-window-size`、`minimum-number-of-calls`、`wait-duration-in-open-state`、`max-concurrent-calls`、`call-timeout`、`rules` | `true`、`50`、`20`、`10`、`15s`、`0`、空、空 | 按路由 ID 隔离 `5xx`/超时故障与并发舱壁，防止单个下游故障拖垮整个网关 |
 | `chaos.gateway.tenant` | chaos-gateway | chaos-gateway-starter | `enabled`、`fail-closed`、`header-name` | `true`、`true`、`X-Tenant-Id` | 已认证请求以 JWT 租户为准，与请求头不一致时 403；fail-closed=false 可能放行未知租户 |
-| `chaos.gateway.nacos-routes` | chaos-gateway-nacos | chaos-gateway-nacos-starter | `enabled`、`data-id`、`group`、`timeout-ms`、`fail-fast`、`clear-on-empty` | `false`、`chaos-gateway-routes.yaml`、`DEFAULT_GROUP`、`3000`、`false`、`false` | 默认保留上一次有效路由；生产建议发布前校验路由配置 |
+| `chaos.gateway.nacos-routes` | chaos-gateway | chaos-cloud-nacos-starter（配合 chaos-gateway-starter） | `enabled`、`data-id`、`group`、`timeout-ms`、`fail-fast`、`clear-on-empty` | `false`、`chaos-gateway-routes.yaml`、`DEFAULT_GROUP`、`3000`、`false`、`false` | 默认保留上一次有效路由；生产建议发布前校验路由配置 |
 
 ## 数据访问 / 缓存 / 消息 / 任务 / 存储
 
@@ -85,17 +85,17 @@
 | `chaos.cloud.feign` | chaos-http-client / chaos-autoconfigure | chaos-cloud-starter | `unwrap-result` | `true` | 自动解包下游统一 `Result<T>` 响应并翻译业务/远端错误码为 `BizException` |
 | `chaos.cloud.resilience` | chaos-core / chaos-http-client / chaos-autoconfigure | chaos-cloud-starter | `enabled`、`failure-rate-threshold-pct`、`sliding-window-size`、`minimum-number-of-calls`、`wait-duration-in-open-state`、`max-concurrent-calls`、`call-timeout` | `true`、`50`、`20`、`10`、`15s`、`0`、空 | 为 OpenFeign（按服务名）与 `ServiceHttpClients`（按目标主机）提供断路器、并发舱壁与虚拟线程超时预算保护 |
 | `chaos.mq.publisher` | chaos-autoconfigure | chaos-mq-starter | `send-timeout` | `10s` | 同步等待 broker 确认；超时视为发送失败并进入 outbox 重试 |
-| `chaos.mq.outbox` | chaos-mq-jdbc | chaos-mq-starter | `enabled`、`table-name`、`claim-timeout` | `true`、`chaos_mq_outbox`、`5m` | 多实例派发依赖 claim；SENDING 超时后允许重新抢占 |
+| `chaos.mq.outbox` | chaos-mq | chaos-mq-starter | `enabled`、`table-name`、`claim-timeout` | `true`、`chaos_mq_outbox`、`5m` | 多实例派发依赖 claim；SENDING 超时后允许重新抢占 |
 | `chaos.mq.outbox.dispatcher` | chaos-autoconfigure | chaos-mq-starter | `enabled`、`initial-delay`、`interval`、`batch-size`、`max-retry-times`、`retry-backoff` | `true`、`10s`、`1s`、`100`、`10`、`30s` | 超过最大重试次数进入 DEAD_LETTER |
 | `chaos.mq.outbox.cleanup` | chaos-autoconfigure | chaos-mq-starter | `enabled`、`retention`、`interval`、`batch-size` | `true`、`7d`、`1h`、`500` | 只清理 SENT 记录；保留期过短会影响问题追溯 |
-| `chaos.job` | chaos-autoconfigure | chaos-job-starter | `enabled`、`scheduling-enabled` | `true`、`true` | 使用 XXL-JOB 等外部调度时关闭 `scheduling-enabled` |
-| `chaos.job.lock` | chaos-autoconfigure | chaos-job-starter | `key-prefix`、`lease-time` | `chaos:job:`、空（watchdog 续期） | 多实例互斥依赖 `DistributedLock`；显式 `lease-time` 必须大于任务最长执行时间 |
-| `chaos.audit` | chaos-audit | chaos-audit-starter | `enabled` | `true` | 关闭审计会降低安全追溯能力 |
-| `chaos.audit.jdbc` | chaos-audit-jdbc | chaos-audit-jdbc-starter | `enabled`、`table-name`、`fail-fast`、`independent-transaction`、`mask-value`、`sensitive-keywords` | `false`、`chaos_audit_event`、`false`、`true` | 默认独立事务写审计，业务回滚不会丢失失败审计；fail-fast=true 会让审计库可用性影响业务链路 |
+| `chaos.job` | chaos-service / chaos-autoconfigure | chaos-application-starter | `enabled`、`scheduling-enabled` | `true`、`true` | 使用 XXL-JOB 等外部调度时关闭 `scheduling-enabled` |
+| `chaos.job.lock` | chaos-service / chaos-autoconfigure | chaos-application-starter | `key-prefix`、`lease-time` | `chaos:job:`、空（watchdog 续期） | 多实例互斥依赖 `DistributedLock`；显式 `lease-time` 必须大于任务最长执行时间 |
+| `chaos.audit` | chaos-audit | `chaos-web-service-starter` / `chaos-security-starter` | `enabled` | `true` | 关闭审计会降低安全追溯能力 |
+| `chaos.audit.jdbc` | chaos-audit | `chaos-web-service-starter`（配合 JDBC） | `enabled`、`table-name`、`fail-fast`、`independent-transaction`、`mask-value`、`sensitive-keywords` | `false`、`chaos_audit_event`、`false`、`true` | 默认独立事务写审计，业务回滚不会丢失失败审计；fail-fast=true 会让审计库可用性影响业务链路 |
 | `chaos.nacos` | chaos-autoconfigure | chaos-cloud-nacos-starter | `enabled`、`data-id-prefix`、`group`、`metadata-prefix` | `true`、`chaos`、`DEFAULT_GROUP`、`chaos` | 多环境应显式区分 group/namespace |
 | `chaos.storage` | chaos-autoconfigure | chaos-storage-starter | `provider`、`max-object-size`、`allowed-content-types` | `NONE`、空（不限制）、空（不限制） | 必须显式设置 `oss` 或 `minio` 才会创建默认客户端；面向用户上传时应配置大小和类型白名单 |
-| `chaos.storage.oss` | chaos-storage-oss | chaos-storage-starter | `endpoint`、`access-key-id`、`access-key-secret` | 空 | `provider=oss` 后必须配置完整密钥 |
-| `chaos.storage.minio` | chaos-storage-minio | chaos-storage-starter | `endpoint`、`access-key`、`secret-key` | 空 | `provider=minio` 后必须配置完整密钥 |
+| `chaos.storage.oss` | chaos-storage | chaos-storage-starter | `endpoint`、`access-key-id`、`access-key-secret` | 空 | `provider=oss` 后必须配置完整密钥 |
+| `chaos.storage.minio` | chaos-storage | chaos-storage-starter | `endpoint`、`access-key`、`secret-key` | 空 | `provider=minio` 后必须配置完整密钥 |
 
 ## 配置校验
 

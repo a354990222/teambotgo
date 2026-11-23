@@ -59,19 +59,18 @@ The module dependency flows top-down. Directory layout (directory name = artifac
 
 - **chaos-dependencies** — Public BOM and version source of truth.
 - **chaos-foundation/** — `chaos-core` (request context `RequestContext`/`RequestContextSnapshot`, unified result contracts `ApiResult`/`DefaultApiResult`/`ApiResultJson`, error codes `ErrorCode`/`ChaosException`/`BizException`, `ChaosHeaders`, idempotency contracts `core.idempotent` with dev-only in-memory impl in `core.idempotent.support`, `core.lock`, rate limiter SPI + in-memory impl `core.ratelimit`, governance metrics SPI `core.metrics` (`ChaosMetrics`/`ChaosMeterNames`, Micrometer impl lives in `chaos-trace`), framework message bundles `com/chaos/core/i18n/messages/`, trusted-proxy client IP resolution `core.net.ForwardedClientIpResolver`) and `chaos-domain` (DDD primitives `domain.model.AggregateRoot`/`DomainEvent`/`DomainException`, `domain.dto.PageQuery`/`PageResult`, `domain.cache` key strategy). `chaos-core` depends on no chaos module.
-- **chaos-process/** — Process capability domain: `chaos-process` contains framework-neutral process contracts (`com.chaos.process`), the state-machine kernel (`com.chaos.process.statemachine`) and development/test adapters (`com.chaos.process.support`); `chaos-process-jdbc` and `chaos-process-redis` provide persistence adapters. The modules depend only on `chaos-core` plus their respective infrastructure libraries.
-- **chaos-observability/chaos-trace** — W3C trace context propagation, MDC keys/`MdcSupport` and logback/log4j2 templates (`com.chaos.trace.log`), OpenFeign trace interceptor (`trace.feign`), Micrometer observation filter and `MicrometerChaosMetrics` (`trace.monitor`; micrometer is optional).
-- **chaos-audit/** — `chaos-audit` (audit events, incl. `AsyncAuditEventPublisher`) and `chaos-audit-jdbc` (JDBC audit persistence).
-- **chaos-service** — Application-layer utilities: `TransactionExecutor`, `TransactionalSideEffects`, `RetryExecutor`, `DomainEventPublisher`, `TraceContextTaskDecorator`, `SecurityContextPropagation`.
+- **chaos-process** — Process capability domain: `com.chaos.process` contracts, state-machine kernel (`com.chaos.process.statemachine`), development/test adapter (`com.chaos.process.support`), and optional JDBC/Redis persistence engines (`com.chaos.process.jdbc`, `com.chaos.process.redis`). Depends only on `chaos-core` plus optional `spring-jdbc` / `spring-data-redis`.
+- **chaos-trace** — W3C trace context propagation, MDC keys/`MdcSupport` and logback/log4j2 templates (`com.chaos.trace.log`), OpenFeign trace interceptor (`trace.feign`), Micrometer observation filter and `MicrometerChaosMetrics` (`trace.monitor`; micrometer is optional).
+- **chaos-audit** — Audit events (`AsyncAuditEventPublisher`, `AuditAttributeSanitizer`) and optional JDBC audit persistence (`com.chaos.audit.jdbc`, `spring-jdbc` optional).
+- **chaos-service** — Application-layer utilities: `TransactionExecutor`, `TransactionalSideEffects`, `RetryExecutor`, `DomainEventPublisher`, `TraceContextTaskDecorator`, `SecurityContextPropagation`, and distributed scheduled job runner (`com.chaos.service.job.DistributedJobRunner`; `chaos-trace` optional).
 - **chaos-web** — Servlet-layer: unified `Result` response wrapper, `GlobalExceptionHandler`, `TraceFilter`, `XssFilter`, `RateLimitInterceptor` (`ANNOTATION_ONLY` default), `IdempotentInterceptor`, `IdempotentResponseReplayFilter`, error message i18n (`web.i18n`). Requires `chaos-trace` (compile scope).
 - **chaos-http-client** — Inter-service HTTP (`ServiceHttpClient`/`ServiceHttpClients`) and OpenFeign adapters (`ChaosFeignResultDecoder`, `ChaosFeignErrorDecoder`, `ServiceTokenFeignInterceptor`).
 - **chaos-tenant** — Multi-tenancy: `TenantContext`, `TenantAccessValidator`, isolation modes, servlet adapter `tenant.servlet`.
 - **chaos-security/** — `chaos-security-api` (Spring-free contracts: `LoginUser`, `LoginUserProvider`, `ChaosJwtClaims`, `JwtRevocationService`/`JwtTokenIds`, RBAC/ABAC model in `security.api.access` — policies, attribute operators, `AccessPolicyFactory`, `AuthorizationManagerBuilder`, policy sources/caching and the config-binding POJOs shared with the gateway, `DataScopeContext`), `chaos-security` (servlet JWT/opaque-token resource server, `@Permission`/`@RequireAccess`/data-scope aspects, SpEL attribute evaluation, environment contributors), `chaos-authorization` (OAuth2 authorization server extensions) and `chaos-security-redis` (the single Redis JWT blacklist implementation, the Redis ABAC policy source, plus Redis authorization-server stores). Gateway, MyBatis and Redis modules depend only on `chaos-security-api`.
-- **chaos-gateway/** — `chaos-gateway` (Spring Cloud Gateway filters for JWT auth, coarse-grained RBAC/ABAC access control, tenant routing, rate limiting, blacklist, gray-tag, access logging; requires `chaos-trace`) and `chaos-gateway-nacos` (Nacos dynamic routes).
+- **chaos-gateway** — Spring Cloud Gateway filters for JWT auth, coarse-grained RBAC/ABAC access control, tenant routing, rate limiting, blacklist, gray-tag, access logging (requires `chaos-trace`), and optional Nacos dynamic routes (`com.chaos.gateway.nacos`, `nacos-client` optional).
 - **chaos-data/** — `chaos-mybatis` (MyBatis-Plus: tenant line, data scope, audit fill with `Clock`, optimistic lock, `SnowflakeIdGenerator`), `chaos-redis` (Redisson: `DistributedLock` and `IdempotentRepository` implementations, rate limiter, bloom filter, delay queue, Caffeine L1 + Redis L2 `TwoLevelCacheManager` & `CacheAsideTemplate`), and `chaos-excel` (Apache POI XLSX import/export + `FileSignatures`/`OfficeDocuments` safety guards).
-- **chaos-mq/** — Reliable messaging with outbox pattern: `chaos-mq` (abstractions, outbox health in adapter package `mq.reliable.actuate`), `chaos-mq-kafka`, `chaos-mq-rocketmq`, `chaos-mq-jdbc` (outbox repository with batched cleanup).
-- **chaos-job** — Scheduled job support (`DistributedJobRunner`).
-- **chaos-storage/** — Object storage: `chaos-storage` (port `ObjectStorageClient`, package `com.chaos.storage`), `chaos-storage-minio`, `chaos-storage-oss`.
+- **chaos-mq** — Reliable messaging with outbox pattern: abstractions, outbox health (`mq.reliable.actuate`), and optional Kafka (`mq.kafka`), RocketMQ (`mq.rocketmq`), and JDBC outbox (`mq.jdbc`) adapters.
+- **chaos-storage** — Object storage port (`ObjectStorageClient`, package `com.chaos.storage`), local storage, and optional MinIO/OSS adapters (`com.chaos.storage.minio`, `com.chaos.storage.oss`).
 - **chaos-autoconfigure**, **chaos-starters/** — see below.
 - **chaos-test-support** — Published test fixtures for business projects (`com.chaos.test`): `@WithChaosContext`/`ChaosTestContext`, `TestLoginUsers`/`ChaosSecurityTestSupport`/`ChaosMockMvcSecurity`, `InMemoryRedisTemplates`, `ChaosContainers`, `DddArchitectureAssertions`, `ProductionSafetyTestSupport`. All framework deps optional; may only be depended on in `test` scope. Reuse it in framework tests instead of copying helpers.
 - **chaos-architecture-tests** — Repository-level POM/source architecture governance tests (`LayerBoundaryArchitectureTest`, `DependencyDirectionArchitectureTest`, `ArchetypeArchitectureTest`, `ProjectModel`; ArchUnit bytecode checks live in `chaos-autoconfigure`'s `ArchitectureRulesArchUnitTest`); not published.
@@ -85,14 +84,14 @@ Enforced by `DependencyDirectionArchitectureTest` / `LayerBoundaryArchitectureTe
 
 1. `chaos-core` depends on no chaos module and no Spring Web/Servlet/Security.
 2. `chaos-security-api` depends only on `chaos-core` and imports nothing from `org.springframework`.
-3. `chaos-gateway`, `chaos-gateway-nacos`, `chaos-mybatis`, `chaos-redis` may use `chaos-security-api` only — never `chaos-security`, `chaos-authorization` or `chaos-security-redis`.
+3. `chaos-gateway`, `chaos-mybatis`, `chaos-redis` may use `chaos-security-api` only — never `chaos-security`, `chaos-authorization` or `chaos-security-redis`.
 4. `chaos-redis` contains no security concepts; Redis security implementations belong in `chaos-security-redis`.
 5. `@AutoConfiguration` lives only in `chaos-autoconfigure`, which holds wiring only (no Filter/Interceptor/Repository/Service/Store/Registry implementations).
 6. Starters have no Java code and never depend on examples, `chaos-test-support` or `chaos-architecture-tests`.
 7. Only starters depend on `chaos-autoconfigure`.
 8. `chaos-test-support` is only used in `test` scope.
 9. Every module's packages live under its own base package `com.chaos.<module>`; register the base package of any new module in `DependencyDirectionArchitectureTest.BASE_PACKAGES`.
-10. Scenario starters (`chaos-web-service-starter`, `chaos-auth-server-starter`) aggregate capability starters only (plus Actuator/Prometheus); capability starters never depend on scenario starters.
+10. Scenario starter `chaos-web-service-starter` aggregates capability starters and cross-cutting modules without standalone starters (`chaos-tenant`, `chaos-audit`) only; capability starters never depend on scenario starters.
 
 ### Auto-configuration And Starter Pattern
 
@@ -101,8 +100,8 @@ Enforced by `DependencyDirectionArchitectureTest` / `LayerBoundaryArchitectureTe
 - `chaos-starters/chaos-<feature>-starter` — dependency-only POMs: `chaos-autoconfigure` + feature library + frameworks. Starters must not contain Java source. Library modules and examples must not depend on `chaos-autoconfigure` directly.
 
 Starters come in two layers:
-- **Scenario starters** (pick one per application): `chaos-web-service-starter` (servlet business service = web + security + tenant + audit + application), `chaos-gateway-starter` (API gateway), `chaos-auth-server-starter` (authorization server = authorization + Actuator/Prometheus).
-- **Capability starters** (add as needed): `application`, `audit`, `audit-jdbc`, `authorization`, `cloud`, `cloud-nacos`, `cloud-reactive`, `gateway-nacos`, `job`, `mq`, `mq-jdbc`, `mybatis`, `process`, `process-jdbc`, `process-redis`, `redis`, `security`, `storage`, `tenant`, `web`.
+- **Scenario starters** (pick one per application): `chaos-web-service-starter` (servlet business service = web + security + tenant + audit + application), `chaos-gateway-starter` (API gateway), `chaos-authorization-starter` (authorization server = authorization + Actuator/Prometheus).
+- **Capability starters** (add as needed): `application`, `cloud`, `cloud-nacos`, `cloud-reactive`, `mq`, `mybatis`, `process`, `redis`, `security`, `storage`, `web`.
 
 `chaos-boot-parent` is the recommended parent for applications (inherits `chaos-dependencies`; Java 21, `-parameters`, surefire/failsafe, spring-boot `repackage` in pluginManagement). It must not inherit `chaos-parent` or carry framework release governance plugins.
 

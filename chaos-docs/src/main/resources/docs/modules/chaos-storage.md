@@ -2,10 +2,7 @@
 
 ## 职责
 
-文件与对象存储能力域。契约模块位于 `chaos-storage/chaos-storage`，对外 artifactId 为 `chaos-storage`；MinIO、OSS 适配器（`chaos-storage-minio`、`chaos-storage-oss`）位于同一能力域目录下。
-
-> 对象存储端口模块（目录 `chaos-storage/chaos-storage`），
-> 能力域、starter（`chaos-storage-starter`）与配置前缀（`chaos.storage.*`）统一使用 storage 命名。
+文件与对象存储能力模块。源码目录为 `chaos-storage`，对外 artifactId 为 `chaos-storage`；核心端口（`com.chaos.storage`）、本地存储（`com.chaos.storage.local`）及可选 OSS / MinIO 适配器（`com.chaos.storage.oss`、`com.chaos.storage.minio`）统一位于本模块（三方 SDK 均为 `<optional>true</optional>`）。
 
 | 类型 | 说明 |
 | --- | --- |
@@ -21,8 +18,8 @@
 
 ## 配置
 
-`chaos-storage-starter` 聚合 `chaos-autoconfigure`（storage）、`chaos-storage-minio` 与 `chaos-storage-oss`。
-只需要端口抽象时依赖 `chaos-storage`；需要运行时自动装配 MinIO 或 OSS 时依赖 starter。
+`chaos-storage-starter` 聚合 `chaos-autoconfigure`（storage）与 `chaos-storage`（含 OSS 与 MinIO 适配器）。
+只需要端口抽象时依赖 `chaos-storage`；需要运行时自动装配时依赖 `chaos-storage-starter` 并引入对应云厂商 SDK（`aliyun-sdk-oss` 或 `minio`）且显式指定 `chaos.storage.provider`。
 
 ```yaml
 chaos:
@@ -86,7 +83,12 @@ URL url = objectStorageClient.presignedGetUrl("user-files", key, Duration.ofMinu
 - 自动注册的 `ObjectStorageClient` 是 `PolicyEnforcingObjectStorageClient` 包装后的实例；
   自定义 Bean 若需要上传限制，需自行包装。
 - 同一应用需要多存储路由时，由业务注册自己的组合 `ObjectStorageClient` 实现。
-- 新增存储产品时放到 `chaos-storage/{adapter}` 下，并补充对应的自动装配条件。
+- 新增存储产品时放到 `com.chaos.storage.<adapter>` 包下（三方 SDK 设为 `optional`），并补充对应的自动装配条件。
+
+### OSS 与 MinIO 适配器行为
+
+- **OSS（`OssObjectStorageClient`）**：`size < 0` 时不设置 `Content-Length`，使用 chunked 上传；预签名 URL 有效期 1 秒 ~ 7 天；建议生产使用 RAM 子账号或 STS 临时凭证。
+- **MinIO（`MinioObjectStorageClient`）**：`size < 0`（大小未知）时使用 10 MiB 分块上传；额外提供 `stat(bucket, objectKey)` 查询对象元数据；预签名 URL 有效期上限 7 天。
 
 ## 本地卷与可选文档检查
 

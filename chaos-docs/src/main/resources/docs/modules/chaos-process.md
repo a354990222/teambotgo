@@ -10,11 +10,9 @@
 - **流程引擎端口与领域模型（`com.chaos.process`）**：`ProcessEngine`、`ProcessDefinition`、`ProcessInstance`、`ProcessTask`、`ProcessNode`、`ProcessTransition`、`ProcessInstanceCommand`、`ProcessTaskClaimCommand`、`ProcessTaskCompletionCommand`；
 - **开发/测试内存适配（`com.chaos.process.support`）**：`InMemoryProcessEngine`（标有 `@UnsafeForProduction`，生产环境会被 `ProductionSafetyEnforcer` 默认阻断启动）。
 
-本模块仅依赖 `chaos-core`，不依赖 Spring、JDBC 或 Redis。
+本模块仅依赖 `chaos-core`（`spring-jdbc`、`spring-data-redis`、`jackson-databind`、`jackson-datatype-jsr310` 均为 `optional`）。
 
 ## 依赖方式
-
-开发/测试或自定义持久化引擎时引入 `chaos-process-starter`：
 
 ```xml
 <dependency>
@@ -23,7 +21,7 @@
 </dependency>
 ```
 
-纯领域/应用接口模块也可直接依赖 `com.chaos:chaos-process`。
+纯领域/应用接口模块也可直接依赖 `com.chaos:chaos-process`。若切换 JDBC/Redis 引擎，保证应用已引入 `spring-boot-starter-jdbc` 或 `spring-boot-starter-data-redis`（如 `chaos-mybatis-starter` / `chaos-redis-starter`）即可，无需单独添加适配器 starter。
 
 ## 配置
 
@@ -39,8 +37,8 @@ chaos:
 
 ## 扩展点与持久化实现
 
-- `chaos.process.engine=jdbc`：引入 [chaos-process-jdbc](chaos-process-jdbc.md)（`chaos-process-jdbc-starter`）；
-- `chaos.process.engine=redis`：引入 [chaos-process-redis](chaos-process-redis.md)（`chaos-process-redis-starter`）；
+- `chaos.process.engine=jdbc`：启用内置 `JdbcProcessEngine`（包 `com.chaos.process.jdbc`）。将 `ProcessDefinition` 与聚合作快照序列化为 JSON 落库，同时将 `tenant_id`、`process_code`、`definition_version`、`status`、`claim_expires_at`、`version` 建索引字段，支持多实例认领租约与乐观锁；建表 SQL 参考 `classpath:db/chaos-process-schema-h2.sql`（含 `chaos_process_definition`、`chaos_process_instance`、`chaos_process_task`、`chaos_process_request`）。
+- `chaos.process.engine=redis`：启用内置 `RedisProcessEngine`（包 `com.chaos.process.redis`），基于 `StringRedisTemplate` 与 Lua CAS 原子校验 `"version":N` 覆写，支持幂等重放与租约过期重认领；默认 key 前缀 `chaos:process`。
 - `chaos.process.engine=none`：由业务自行提供 `ProcessEngine` Bean。
 
 ## 注意事项

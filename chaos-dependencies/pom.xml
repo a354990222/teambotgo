@@ -205,16 +205,6 @@
                 <artifactId>chaos-process</artifactId>
                 <version>${revision}</version>
             </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-process-jdbc</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-process-redis</artifactId>
-                <version>${revision}</version>
-            </dependency>
             <!-- chaos-core 的测试替身（RecordingChaosMetrics 等），仅供框架内部模块以 test 作用域复用。 -->
             <dependency>
                 <groupId>com.chaos</groupId>
@@ -235,11 +225,6 @@
             <dependency>
                 <groupId>com.chaos</groupId>
                 <artifactId>chaos-audit</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-audit-jdbc</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
@@ -309,47 +294,12 @@
             </dependency>
             <dependency>
                 <groupId>com.chaos</groupId>
-                <artifactId>chaos-mq-jdbc</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-mq-kafka</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-mq-rocketmq</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
                 <artifactId>chaos-gateway</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>com.chaos</groupId>
-                <artifactId>chaos-gateway-nacos</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-job</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
                 <artifactId>chaos-storage</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-storage-minio</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-storage-oss</artifactId>
                 <version>${revision}</version>
             </dependency>
             <!-- 统一自动装配模块：业务方通常不直接依赖，优先使用对应 starter。 -->
@@ -372,25 +322,15 @@
             </dependency>
             <dependency>
                 <groupId>com.chaos</groupId>
-                <artifactId>chaos-auth-server-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <!-- 能力 starter：按需追加（chaos-gateway-starter 同时是网关场景 starter） -->
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-audit-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-audit-jdbc-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
                 <artifactId>chaos-authorization-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
+            <dependency>
+                <groupId>com.chaos</groupId>
+                <artifactId>chaos-gateway-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <!-- 能力 starter：按需追加 -->
             <dependency>
                 <groupId>com.chaos</groupId>
                 <artifactId>chaos-cloud-starter</artifactId>
@@ -408,42 +348,12 @@
             </dependency>
             <dependency>
                 <groupId>com.chaos</groupId>
-                <artifactId>chaos-gateway-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-gateway-nacos-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-job-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
                 <artifactId>chaos-process-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>com.chaos</groupId>
-                <artifactId>chaos-process-jdbc-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-process-redis-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
                 <artifactId>chaos-mq-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-mq-jdbc-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
@@ -469,11 +379,6 @@
             <dependency>
                 <groupId>com.chaos</groupId>
                 <artifactId>chaos-storage-starter</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-tenant-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>

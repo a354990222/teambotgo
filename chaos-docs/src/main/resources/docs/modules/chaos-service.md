@@ -2,7 +2,7 @@
 
 ## 职责
 
-应用服务层能力：事务执行器、重试执行器、领域事件发布、JSON 编解码、异步上下文传播和通用观测配置。
+应用服务层能力：事务执行器、重试执行器、领域事件发布、JSON 编解码、异步上下文传播、分布式定时任务执行器（`com.chaos.service.job`）和通用观测配置。
 
 ## 依赖方式
 
@@ -72,7 +72,7 @@ TaskDecorator taskDecorator() {
 - **需要写库的监听器必须使用 `@Transactional(propagation = Propagation.REQUIRES_NEW)`**。AFTER_COMMIT 阶段原事务已提交，
   以默认 `REQUIRED` 写库会加入已提交事务，数据静默丢失。
 - 提交后监听器抛出的异常只记录 ERROR 日志，不传回调用方，避免调用方误判失败而重试造成重复数据；无事务时异常照常抛出。
-- 需要可靠投递时使用 outbox（chaos-mq-jdbc）在业务事务内落库。
+- 需要可靠投递时使用 outbox（`chaos-mq`）在业务事务内落库。
 
 ### JSON 编解码
 
@@ -90,6 +90,23 @@ OrderSnapshot snapshot = jsonUtils.fromJson(json, OrderSnapshot.class);
 ### 指标
 
 通用标签只保留 `framework=chaos`。旧版本给所有指标追加 `meter.namespace=http.server.requests`，属于错误标签，已移除。
+
+### 分布式定时任务（`com.chaos.service.job`）
+
+原独立模块 `chaos-job` 已合并至 `chaos-service`（包 `com.chaos.service.job`），定位为轻量分布式互斥与 Trace/MDC 上下文增强（不包含任务分片、失败重试调度或控制台运维；接入 XXL-JOB / PowerJob 时可将 `chaos.job.scheduling-enabled` 设为 `false`，任务体继续复用 `DistributedJobRunner`）：
+
+- `DistributedJobRunner` / `JobExecutor` / `JobExecutionContext`：以 `chaos.job.lock.key-prefix + jobName` 尝试非阻塞抢锁，生成独立 traceId 并写入 MDC `jobName`，结束后释放锁并恢复调度线程原上下文。
+- 多实例部署需引入 `chaos-redis-starter` 提供 `DistributedLock`；无锁 Bean 时退化为本地执行并输出 WARN。
+
+```yaml
+chaos:
+  job:
+    enabled: true              # 总开关
+    scheduling-enabled: true   # 是否开启 @EnableScheduling
+    lock:
+      key-prefix: "chaos:job:"
+      lease-time:              # 为空时使用 Redisson watchdog 自动续期
+```
 
 ## 示例
 

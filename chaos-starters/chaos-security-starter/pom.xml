@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-audit-starter</artifactId>
+            <artifactId>chaos-audit</artifactId>
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>

@@ -14,5 +14,5 @@
     <artifactId>chaos-archetype-auth-server</artifactId>
     <packaging>maven-archetype</packaging>
     <name>chaos-archetype-auth-server</name>
-    <description>Generates an OAuth2 authorization server based on chaos-auth-server-starter.</description>
+    <description>Generates an OAuth2 authorization server based on chaos-authorization-starter.</description>
 </project>

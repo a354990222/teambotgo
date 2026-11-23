@@ -2,11 +2,11 @@
 
 ## 职责
 
-提供统一审计事件模型、审计发布端口和默认结构化日志发布器。源码目录为 `chaos-audit/chaos-audit`，对外 artifactId 为 `chaos-audit`。
+提供统一审计事件模型、审计发布端口、默认结构化日志发布器，以及可选 JDBC 持久化适配器（`com.chaos.audit.jdbc`）。源码目录为 `chaos-audit`，对外 artifactId 为 `chaos-audit`（`spring-jdbc`、`jackson-databind` 为 `optional`）。
 
 ## 依赖方式
 
-业务应用优先通过 `chaos-audit-starter`、`chaos-security-starter`、`chaos-authorization-starter` 或 `chaos-gateway-starter` 间接引入。
+业务应用通过 `chaos-web-service-starter`、`chaos-security-starter`、`chaos-authorization-starter` 或 `chaos-gateway-starter` 自动引入。
 
 ```xml
 <dependency>
@@ -30,8 +30,7 @@ chaos:
 默认发布器把审计事件写到独立的 `AUDIT_LOG` logger。生产环境建议在 logback 中为该 logger 配置单独的 appender
 （独立文件、独立保留策略），或直接注册自定义 `AuditEventPublisher`。
 
-需要框架内置的落库能力时追加 `chaos-audit-jdbc-starter`，并显式配置 `chaos.audit.jdbc.enabled=true`
-（见 [chaos-audit-jdbc](chaos-audit-jdbc.md)）。
+需要框架内置的落库能力时，确保应用已引入 `spring-boot-starter-jdbc`（或 `chaos-mybatis-starter`），并显式配置 `chaos.audit.jdbc.enabled=true`（见下方 [JDBC 持久化适配](#jdbc-持久化适配)）。
 
 ## 内置事件
 
@@ -88,7 +87,7 @@ AuditEventPublisher auditEventPublisher(AuditRepository repository) {
 - 对接企业 SIEM 或安全审计平台。
 - 按事件动作配置告警规则。
 
-框架已经提供 JDBC 落库适配器，详见 `chaos-audit-jdbc` 和 `chaos-audit-jdbc-starter`。
+框架已经提供内置 JDBC 落库适配器（`com.chaos.audit.jdbc.JdbcAuditEventPublisher`）。
 
 ## 属性脱敏
 
@@ -97,7 +96,7 @@ AuditEventPublisher auditEventPublisher(AuditRepository repository) {
 - 默认 `LoggingAuditEventPublisher` 已接入脱敏（旧版本直接打印 attributes，密码、验证码会进入日志平台），
   并把 `reason` 中的换行替换为空格，防止伪造审计日志行。
 - 自动装配注册 `AuditAttributeSanitizer` Bean，自定义发布器可以直接注入复用。
-- 规则说明见 `chaos-audit-jdbc` 文档的"脱敏策略"一节。
+- 脱敏规则见下方"脱敏策略"一节。
 
 ## 注意事项
 
@@ -108,14 +107,14 @@ AuditEventPublisher auditEventPublisher(AuditRepository repository) {
 
 ## 异步发布
 
-审计事件默认在请求线程内同步发布。配合 `chaos-audit-jdbc` 时，每次登录、每次权限拒绝都是一次 inline
+审计事件默认在请求线程内同步发布。开启 JDBC 落库时，每次登录、每次权限拒绝都是一次 inline
 数据库写入——扫描器批量打未授权接口会把审计写入变成可被外部触发的放大点。
 
 ```yaml
 chaos:
   audit:
     async:
-      enabled: true        # 默认 false；配合 chaos-audit-jdbc 时强烈建议开启
+      enabled: true        # 默认 false；配合 JDBC 落库时强烈建议开启
       queue-capacity: 10000
 ```
 
@@ -128,10 +127,31 @@ chaos:
 - **合规要求零丢失时不要开启异步**：改用同步写入，或把审计投递到 MQ。
 
 
-## JDBC 应用主键
+## JDBC 持久化适配
 
-`chaos.audit.jdbc.application-generated-id` 默认 `false`，保持数据库生成主键的兼容行为。设为 `true` 时必须存在 `com.chaos.core.id.IdGenerator` Bean，审计 INSERT 显式写入 `id`；表须提供 BIGINT id 列，框架不会自动迁移数据库。缺少生成器时启动失败并提示修复配置。
+`com.chaos.audit.jdbc.JdbcAuditEventPublisher` 在 `chaos.audit.jdbc.enabled=true` 且容器存在 `JdbcOperations` 时由 `ChaosAuditJdbcAutoConfiguration` 自动装配（优先级高于默认日志审计）。
 
-此模式仍使用同一个 `JdbcAuditEventPublisher`，保留脱敏、长度裁剪、JSON 编码、失败策略、REQUIRES_NEW 事务及异步/指标包装。直接构造发布器时可用新增的七参数构造器传入 IdGenerator，原构造器行为不变。
+1. 业务服务提供 `DataSource`（需引入 `spring-boot-starter-jdbc` 或 `chaos-mybatis-starter`）。
+2. 执行 `classpath:db/chaos-audit-schema.sql`（或 `classpath:db/mysql/chaos-audit-schema.sql`）建表。
+3. 配置 `chaos.audit.jdbc.enabled=true` 并强烈建议开启 `chaos.audit.async.enabled=true`。
+
+```yaml
+chaos:
+  audit:
+    enabled: true
+    async:
+      enabled: true
+    jdbc:
+      enabled: true
+      table-name: chaos_audit_event
+      fail-fast: false
+      independent-transaction: true  # 存在事务管理器时使用 REQUIRES_NEW 独立事务写入
+      application-generated-id: false
+      mask-value: "******"
+```
+
+- **独立事务与字段截断**：`REQUIRES_NEW` 避免业务回滚吞掉失败/拒绝审计；写入前按表字段上限截断（action 128、outcome 32、principal/tenant/client/trace 128、ip 64、uri/reason 512）；表名只允许 `table` 或 `schema.table` 字母/数字/下划线格式。
+- **脱敏策略**：默认对 `password`、`passwd`、`token`、`secret`、`credential`、`authorization`、`cookie`、`privatekey`、`apikey`、`smscode`、`verifycode`、`verificationcode`、`captcha`、`authcode` 等关键词包含匹配，对 `code`、`pin`、`otp`、`cvv`、`pwd` 精确匹配，对 `Bearer xxx` / `Basic xxx` / JWT 值特征脱敏。`chaos.audit.jdbc.sensitive-keywords` 可补充包含匹配列表。
+- **应用生成主键**：`chaos.audit.jdbc.application-generated-id=true` 时必须提供 `com.chaos.core.id.IdGenerator` Bean 并在表中提供 `BIGINT id` 列，否则启动报错阻断。
 
 异常分类、审计事务与安全诊断的当前约定见 [异常可靠性](../exception-reliability.md)。

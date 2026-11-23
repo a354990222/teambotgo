@@ -24,7 +24,7 @@
         -->
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-auth-server-starter</artifactId>
+            <artifactId>chaos-authorization-starter</artifactId>
         </dependency>
 
         <dependency>

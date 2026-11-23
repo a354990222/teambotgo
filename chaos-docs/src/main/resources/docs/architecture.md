@@ -13,15 +13,9 @@ chaos-framework
 ├── chaos-foundation
 │   ├── chaos-core                    请求上下文、错误码、异常、幂等/锁/限流 SPI、可信代理 IP 解析（不依赖任何 chaos 模块）
 │   └── chaos-domain                  DDD 基础类型（domain.model）、分页（domain.dto）、缓存 key 策略（domain.cache）
-├── chaos-process
-│   ├── chaos-process                 流程契约、状态机内核及开发运行时支持（依赖 chaos-core，当前含内存实现）
-│   ├── chaos-process-jdbc            JDBC 流程持久化适配
-│   └── chaos-process-redis           Redis 流程持久化适配
-├── chaos-observability
-│   └── chaos-trace                   W3C trace 上下文、MDC 与日志模板、Feign 透传、Micrometer 指标约定（trace.monitor）
-├── chaos-audit
-│   ├── chaos-audit                   审计事件端口与日志发布器
-│   └── chaos-audit-jdbc              JDBC 审计持久化
+├── chaos-process                     流程契约、状态机内核及可选 JDBC/Redis 持久化引擎
+├── chaos-trace                       W3C trace 上下文、MDC 与日志模板、Feign 透传、Micrometer 指标约定（trace.monitor）
+├── chaos-audit                       审计事件端口、日志发布器及可选 JDBC 审计持久化
 ├── chaos-tenant                      租户生命周期、隔离契约与 servlet 适配
 ├── chaos-security
 │   ├── chaos-security-api            与 Spring Security 无关的安全契约（LoginUser、claims、撤销/数据权限 SPI、RBAC/ABAC 模型）
@@ -29,32 +23,22 @@ chaos-framework
 │   ├── chaos-authorization           OAuth2 授权服务器扩展
 │   └── chaos-security-redis          Redis 版 JWT 黑名单与授权服务器存储
 ├── chaos-web                         Servlet 层：Result、异常、Trace/XSS 过滤器、限流、幂等
-├── chaos-http-client                 服务间 HTTP/OpenFeign 客户端适配：Trace/ServiceToken 透传与 Result 解包
-├── chaos-service                     应用层：事务（含事务副作用）、重试、领域事件、异步上下文传播
+├── chaos-web-reactive                WebFlux 响应式业务服务栈：ReactiveResultHandler、异常、Trace、非阻塞限流与幂等
+├── chaos-http-client                 服务间 HTTP/OpenFeign 客户端适配：Trace/ServiceToken 透传、Result 解包与熔断舱壁
+├── chaos-service                     应用层：事务（含事务副作用）、重试、领域事件、异步上下文传播、分布式定时任务（DistributedJobRunner）
 ├── chaos-data
 │   ├── chaos-mybatis                 MyBatis-Plus 租户/数据权限/审计填充
-│   ├── chaos-redis                   Redisson 锁、幂等仓储、限流、布隆过滤器、延迟队列
+│   ├── chaos-redis                   Redisson 锁、幂等仓储、限流、布隆过滤器、延迟队列、Caffeine+Redis 两级缓存
 │   └── chaos-excel                   基于 Apache POI 的流式导入导出、文档签名/Office 安全校验
-├── chaos-mq
-│   ├── chaos-mq                      消息与可靠投递（outbox）契约
-│   ├── chaos-mq-jdbc                 JDBC outbox 仓储
-│   ├── chaos-mq-kafka                Kafka 发布适配
-│   └── chaos-mq-rocketmq             RocketMQ 发布适配
-├── chaos-gateway
-│   ├── chaos-gateway                 网关过滤器（只依赖 chaos-security-api）
-│   └── chaos-gateway-nacos           Nacos 动态路由
-├── chaos-job                         分布式任务执行（DistributedJobRunner）
-├── chaos-storage
-│   ├── chaos-storage                 对象存储端口（com.chaos.storage）
-│   ├── chaos-storage-oss             阿里云 OSS 适配
-│   └── chaos-storage-minio           MinIO 适配
+├── chaos-mq                          消息与可靠投递（outbox）契约及可选 JDBC/Kafka/RocketMQ 适配器
+├── chaos-gateway                     网关过滤器（只依赖 chaos-security-api）及可选 Nacos 动态路由
+├── chaos-storage                     对象存储端口（com.chaos.storage）、本地存储及可选 OSS/MinIO 适配器
 ├── chaos-autoconfigure               全部自动装配（com.chaos.autoconfigure.<feature>）与生产安全检查；依赖均为 optional
 ├── chaos-boot-parent                 业务应用推荐 parent（继承 BOM；编译、测试、repackage 约定；不含框架治理插件）
 ├── chaos-starters
-│   ├── 场景 starter                  chaos-web-service-starter、chaos-gateway-starter、chaos-auth-server-starter（一个应用选一个）
-│   └── 能力 starter                  application（原 service）, audit, audit-jdbc, authorization, cloud, cloud-nacos,
-│                                     cloud-reactive, gateway-nacos, job, mq, mq-jdbc, mybatis, process, process-jdbc, process-redis,
-│                                     redis, security, storage, tenant, web
+│   ├── 场景 starter                  chaos-web-service-starter、chaos-gateway-starter、chaos-authorization-starter（一个应用选一个）
+│   └── 能力 starter                  application（原 service）, cloud, cloud-nacos, cloud-reactive, mq, mybatis,
+│                                     process, redis, security, storage, web
 ├── chaos-archetypes                  项目脚手架：chaos-archetype-web-service / -gateway / -auth-server（发布，不进 BOM）
 ├── chaos-test-support                业务项目测试支持：上下文夹具、LoginUser/MockMvc、内存 RedisTemplate、Testcontainers（test scope 引入）
 ├── chaos-architecture-tests          仓库级架构测试与依赖方向规则（不发布）
@@ -81,17 +65,16 @@ flowchart TB
         security["chaos-security"]
         authorization["chaos-authorization"]
         securityRedis["chaos-security-redis"]
-        gateway["chaos-gateway / gateway-nacos"]
+        gateway["chaos-gateway（含可选 Nacos）"]
         mybatis["chaos-mybatis"]
         redis["chaos-redis"]
         excel["chaos-excel"]
-        mq["chaos-mq / mq-*"]
-        storage["chaos-storage / storage-*"]
-        job["chaos-job"]
-        audit["chaos-audit / audit-jdbc"]
+        mq["chaos-mq（含可选 JDBC/Kafka/RocketMQ）"]
+        storage["chaos-storage（含可选 OSS/MinIO）"]
+        audit["chaos-audit（含可选 JDBC）"]
         tenant["chaos-tenant"]
         trace["chaos-trace"]
-        process["chaos-process<br/>状态机与流程引擎"]
+        process["chaos-process<br/>状态机与流程引擎（含可选 JDBC/Redis）"]
     end
     subgraph contracts["契约层"]
         securityApi["chaos-security-api<br/>（不依赖 Spring）"]
@@ -111,6 +94,7 @@ flowchart TB
     redis --> domain
     web --> trace
     web --> domain
+    service --> domain
     securityApi --> core
     domain --> core
     process --> core
@@ -118,7 +102,6 @@ flowchart TB
     tenant --> core
     mq --> core
     storage --> core
-    job --> core
     audit --> core
     testSupport -.-> core
 
@@ -132,14 +115,14 @@ flowchart TB
 | --- | --- | --- |
 | 1 | `chaos-core` 不依赖任何 chaos 模块，不依赖 Spring Web / Servlet / Security | `coreShouldNotDependOnOtherModulesOrWebFrameworks` |
 | 2 | `chaos-security-api` 只依赖 `chaos-core`，不引用 `org.springframework.*` | `securityApiShouldOnlyDependOnCore` |
-| 3 | `chaos-gateway`、`chaos-gateway-nacos`、`chaos-mybatis`、`chaos-redis` 只能依赖 `chaos-security-api`，不得依赖或 import `chaos-security` / `chaos-authorization` / `chaos-security-redis` | `infrastructureModulesShouldOnlyDependOnSecurityApi` |
+| 3 | `chaos-gateway`、`chaos-mybatis`、`chaos-redis` 只能依赖 `chaos-security-api`，不得依赖或 import `chaos-security` / `chaos-authorization` / `chaos-security-redis` | `infrastructureModulesShouldOnlyDependOnSecurityApi` |
 | 4 | `chaos-redis` 不含安全领域概念（依赖、import、类名），Redis 版安全实现只在 `chaos-security-redis` | `redisShouldNotContainSecurityConcepts` |
 | 5 | `@AutoConfiguration` 与 `AutoConfiguration.imports` 只在 `chaos-autoconfigure`；该模块不含 Filter / Interceptor / Repository / Service / Store / Registry 等实现 | `autoConfigurationShouldLiveInSingleModuleWithBoot3Imports`、`autoconfigureShouldOnlyContainWiring` |
 | 6 | starter 不含 Java 代码，不依赖示例、测试支持和架构测试模块 | `startersShouldOnlyAggregateDependencies`、`startersShouldNotDependOnExamplesOrTestModules` |
 | 7 | 只有 starter 可以依赖 `chaos-autoconfigure`，库模块与示例不得依赖 | `autoConfigurationShouldLiveInSingleModuleWithBoot3Imports` |
 | 8 | `chaos-test-support` 只能以 test scope 被依赖 | `testSupportShouldOnlyBeUsedInTestScope` |
 | 9 | 每个模块的 Java 包位于基础包 `com.chaos.<module>` 下，且不落入其他模块更具体的基础包；新增模块须在规则表中登记基础包 | `packagesShouldMatchModuleBasePackage` |
-| 10 | 场景 starter（`chaos-web-service-starter`、`chaos-auth-server-starter`）只聚合能力 starter（外加 Actuator / Prometheus）；能力 starter 不得依赖场景 starter | `scenarioStartersShouldOnlyAggregateCapabilityStarters` |
+| 10 | 场景 starter `chaos-web-service-starter` 只聚合能力 starter 及无独立 starter 的横切模块（`chaos-tenant`、`chaos-audit`）；能力 starter 不得依赖场景 starter | `scenarioStartersShouldOnlyAggregateCapabilityStarters` |
 
 规则在两层执行：
 
@@ -155,9 +138,10 @@ flowchart TB
 | chaos-lock | 契约在 `chaos-core` 的 `com.chaos.core.lock`，Redisson 实现在 `chaos-redis` |
 | chaos-idempotent | 契约在 `chaos-core` 的 `com.chaos.core.idempotent`，Redis 实现在 `chaos-redis`，`@Idempotent` 注解、key 生成与拦截器在 `chaos-web` |
 | chaos-feign | OpenFeign Trace 拦截器在 `chaos-trace`（`com.chaos.trace.feign`）；Result 解包、错误翻译与受限 HTTP 客户端在 `chaos-http-client`；统一由 `ChaosCloudAutoConfiguration` 注册（`chaos-cloud-starter`） |
-| chaos-nacos | `chaos-autoconfigure`（cloud.nacos） / `chaos-cloud-nacos-starter`；网关动态路由见 `chaos-gateway-nacos` |
+| chaos-nacos | `chaos-autoconfigure`（cloud.nacos） / `chaos-cloud-nacos-starter`；网关动态路由位于 `chaos-gateway`（`com.chaos.gateway.nacos`） |
 | chaos-log | `chaos-trace` 的 `com.chaos.trace.log`（`MdcKeys`、`MdcSupport`、日志模板） |
 | chaos-transaction | 已合并入 `chaos-service`（`TransactionExecutor`、`TransactionalSideEffects`） |
+| chaos-job | 已合并入 `chaos-service`（`com.chaos.service.job.DistributedJobRunner`） |
 | chaos-storage-document | 已合并入 `chaos-excel`（`FileSignatures`、`OfficeDocuments`） |
 | chaos-iam | 未落地，仓库中不存在（规划见 `proposals/chaos-iam.md`） |
 
@@ -168,12 +152,9 @@ flowchart TB
 | chaos-dependencies | Public BOM and single source of truth for all dependency versions. |
 | chaos-foundation/chaos-core | Minimal constants (`ChaosHeaders`), request context, unified `ApiResult`/`DefaultApiResult`/`ApiResultJson`, exception contracts, idempotency/lock/rate-limit SPIs, metrics SPI and trusted-proxy client IP resolution. Depends on no chaos module. |
 | chaos-foundation/chaos-domain | DDD aggregate (`AggregateRoot`, `DomainEvent`, `DomainException`), page model (`domain.dto`) and cache key strategy (`domain.cache`). |
-| chaos-process/chaos-process | Framework-neutral process contracts (`com.chaos.process`), state-machine kernel (`com.chaos.process.statemachine`) and development/test adapters (`com.chaos.process.support`). Depends only on `chaos-core`. |
-| chaos-process/chaos-process-jdbc | JDBC persistence adapter for `ProcessEngine`. |
-| chaos-process/chaos-process-redis | Redis persistence adapter for `ProcessEngine` (Lua CAS). |
-| chaos-observability/chaos-trace | Trace context, W3C Trace Context compatibility, baggage, propagation headers, MDC keys and logging templates, OpenFeign trace interceptor, Micrometer observation filter and meter names. |
-| chaos-audit/chaos-audit | Audit event model, sanitizer and default structured / async audit log publisher. |
-| chaos-audit/chaos-audit-jdbc | JDBC audit persistence adapter. |
+| chaos-process | Framework-neutral process contracts (`com.chaos.process`), state-machine kernel (`com.chaos.process.statemachine`), development/test adapters (`com.chaos.process.support`), and optional JDBC/Redis persistence engines (`com.chaos.process.jdbc`, `com.chaos.process.redis`). |
+| chaos-trace | Trace context, W3C Trace Context compatibility, baggage, propagation headers, MDC keys and logging templates, OpenFeign trace interceptor, Micrometer observation filter and meter names. |
+| chaos-audit | Audit event model, sanitizer, default structured / async audit log publisher, and optional JDBC persistence adapter (`com.chaos.audit.jdbc`). |
 | chaos-tenant | Tenant lifecycle status, plan and isolation contracts, servlet access filter. |
 | chaos-security/chaos-security-api | Spring-Security-free contracts: `LoginUser`, JWT claims, revocation SPI, data scope SPI (`DataScopeContext`), RBAC/ABAC model. |
 | chaos-security/chaos-security | Servlet resource server: `SecurityUtils`, RBAC/ABAC and data scope aspects, JWT/opaque token conversion. |
@@ -182,20 +163,13 @@ flowchart TB
 | chaos-web | MVC only: `Result`, exception, validation, trace, OpenAPI, access log, Jackson, rate limit (`ANNOTATION_ONLY` default), idempotency (+ response replay), i18n, XSS. |
 | chaos-web-reactive | WebFlux business services: `ReactiveResultHandler` (`ApiResult` wrap), `ReactiveGlobalExceptionHandler`, `ReactiveTraceWebFilter` (Reactor Context), non-blocking Redis/InMemory rate limit & idempotency, security headers. |
 | chaos-http-client | Inter-service HTTP (`ServiceHttpClient`/`ServiceHttpClients`, `ResilientHttpRequestInterceptor`) and OpenFeign adapters (`ChaosFeignResultDecoder`, `ChaosFeignErrorDecoder`, `ChaosResilientFeignClient`, `ServiceTokenFeignInterceptor`) backed by `chaos-core` `ResilienceRegistry`. |
-| chaos-service | Application layer utilities: transaction (`TransactionExecutor`, `TransactionalSideEffects`), retry, domain events, async & virtual-thread context propagation (`TraceContextTaskDecorator`, `SecurityContextPropagation`). |
+| chaos-service | Application layer utilities: transaction (`TransactionExecutor`, `TransactionalSideEffects`), retry, domain events, async & virtual-thread context propagation (`TraceContextTaskDecorator`, `SecurityContextPropagation`), and distributed scheduled jobs (`com.chaos.service.job.DistributedJobRunner`). |
 | chaos-data/chaos-mybatis | MyBatis Plus pagination, audit fill (`Clock`), tenant plugin, data scope, optimistic lock, logic delete base entity, snowflake ID generator. |
 | chaos-data/chaos-redis | Redisson lock, bloom filter, delay queue, Redis idempotency, cluster rate limit, Lua script, prefixed cache keys, Caffeine+Redis `TwoLevelCacheManager` and `CacheAsideTemplate`. |
 | chaos-data/chaos-excel | Apache POI based XLSX import/export, multi-sheet templates, error reports and document magic-number / ZIP guards (`FileSignatures`, `OfficeDocuments`). |
-| chaos-mq/chaos-mq | Message envelope, publisher, consumer, idempotent consumer and reliable outbox contracts (`OutboxHealth`). |
-| chaos-mq/chaos-mq-jdbc | JDBC outbox persistence adapter (batched cleanup, multi-instance claim). |
-| chaos-mq/chaos-mq-kafka | Kafka adapter. |
-| chaos-mq/chaos-mq-rocketmq | RocketMQ adapter. |
-| chaos-gateway/chaos-gateway | Gateway filters for auth, RBAC/ABAC access control, tenant, rate limit, gray, blacklist, access log and trace. |
-| chaos-gateway/chaos-gateway-nacos | Optional Nacos Config backed dynamic route repository for Spring Cloud Gateway. |
-| chaos-job | Distributed job execution (`DistributedJobRunner`) and scheduling conventions. |
-| chaos-storage/chaos-storage | Object storage port, argument validation and upload policy. |
-| chaos-storage/chaos-storage-oss | Aliyun OSS adapter. |
-| chaos-storage/chaos-storage-minio | MinIO adapter. |
+| chaos-mq | Message envelope, publisher, consumer, idempotent consumer, reliable outbox contracts (`OutboxHealth`), and optional JDBC/Kafka/RocketMQ adapters (`mq.jdbc`, `mq.kafka`, `mq.rocketmq`). |
+| chaos-gateway | Gateway filters for auth, RBAC/ABAC access control, tenant, rate limit, gray, blacklist, access log, trace, and optional Nacos dynamic route repository (`com.chaos.gateway.nacos`). |
+| chaos-storage | Object storage port, argument validation, upload policy, local storage, and optional Aliyun OSS / MinIO adapters (`com.chaos.storage.oss`, `com.chaos.storage.minio`). |
 | chaos-autoconfigure | All auto-configurations (one package per feature), startup diagnostics (`ChaosBuiltInDiagnosticRules`), runtime health and production safety checks; ArchUnit bytecode checks live in tests; every feature library is optional. |
 | chaos-starters/chaos-cloud-* | OpenFeign + `chaos-http-client` (`chaos-cloud-starter`), reactive load-balanced clients without Feign (`chaos-cloud-reactive-starter`) and Nacos discovery/config conventions (`chaos-cloud-nacos-starter`). |
 | chaos-archetypes | Maven archetypes generating ready-to-run web-service (incl. layered Dockerfile), gateway and auth-server projects on `chaos-boot-parent`; verified end to end by `scripts/verify-archetypes.sh`. Not in the BOM. |
@@ -267,7 +241,7 @@ domain -> no framework infrastructure
 
 All framework packages start with `com.chaos`. Each module owns exactly one base package
 `com.chaos.<module>` (for example `chaos-security-api` → `com.chaos.security.api`,
-`chaos-audit-jdbc` → `com.chaos.audit.jdbc`, `chaos-autoconfigure` → `com.chaos.autoconfigure.<feature>`),
+`chaos-audit` → `com.chaos.audit`, `chaos-autoconfigure` → `com.chaos.autoconfigure.<feature>`),
 so a fully qualified class name tells which artifact to depend on and no package is split across jars.
 The mapping is enforced by rule 9 in section 1.2.
 
@@ -382,7 +356,7 @@ AuditEventPublisher
 
 Default implementation writes structured `AUDIT_LOG`. Business systems can replace it with a Spring Bean that persists to database, sends MQ, or forwards to a security audit platform.
 
-`chaos-audit-jdbc-starter` provides optional JDBC persistence. It is disabled by default and only replaces the logging publisher when `chaos.audit.jdbc.enabled=true` and `JdbcOperations` exists.
+`chaos-audit` also provides an optional JDBC persistence adapter (`com.chaos.audit.jdbc`). It is disabled by default and only replaces the logging publisher when `chaos.audit.jdbc.enabled=true` and `JdbcOperations` exists.
 
 Built-in audit events:
 
@@ -518,7 +492,7 @@ Coverage:
 ```text
 chaos-redis       -> Redis 7.2: lock, idempotent key, Lua, JWT blacklist
 chaos-mybatis     -> MySQL 8.4: tenant SQL rewrite
-chaos-mq-kafka    -> Kafka 3.8: trace headers in broker records
+chaos-mq          -> Kafka 3.8: trace headers in broker records
 ```
 
 RocketMQ integration tests should use a separate profile because NameServer and Broker startup are slower and more environment-sensitive.

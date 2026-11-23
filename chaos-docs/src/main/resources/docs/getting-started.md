@@ -113,7 +113,7 @@ curl http://localhost:8080/api/todos -H "Authorization: Bearer <access_token>"
 | --- | --- |
 | 数据库 / 多租户 SQL 隔离 | 追加 `chaos-mybatis-starter`，配置见 [addons/mybatis.yml](templates/addons/mybatis.yml) |
 | 上线（多实例） | 追加 `chaos-redis-starter`，按 [业务服务生产检查清单](checklists/web-service.md) 逐项确认 |
-| 可靠消息 | 追加 `chaos-mq-starter`，先执行 outbox 建表脚本，见 [chaos-mq-jdbc](modules/chaos-mq-jdbc.md) |
+| 可靠消息 | 追加 `chaos-mq-starter`，先执行 outbox 建表脚本，见 [chaos-mq](modules/chaos-mq.md#jdbc-outbox-持久化适配) |
 | 统一入口 | 用 `chaos-archetype-gateway` 生成网关，见 [网关生产检查清单](checklists/gateway.md) |
 | 所有配置项 | [配置参考（自动生成）](configuration-reference.md) |
 | 该选哪些 starter | [Starter 选型](modules/chaos-starters.md) |

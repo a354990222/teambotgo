@@ -2,7 +2,7 @@
 
 ## 职责
 
-TraceId/SpanId 创建、MDC 桥接、W3C Trace Context 兼容和出站 Header 传播。源码目录为 `chaos-observability/chaos-trace`，对外 artifactId 为 `chaos-trace`。
+TraceId/SpanId 创建、MDC 桥接、W3C Trace Context 兼容和出站 Header 传播。源码目录为 `chaos-trace`，对外 artifactId 为 `chaos-trace`。
 
 ## 指标约定
 

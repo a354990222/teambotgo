@@ -10,13 +10,13 @@
 | --- | --- | --- |
 | Servlet 业务服务 | `chaos-web-service-starter` | `chaos-archetype-web-service` |
 | API 网关 | `chaos-gateway-starter` | `chaos-archetype-gateway` |
-| OAuth2 授权服务器 | `chaos-auth-server-starter` | `chaos-archetype-auth-server` |
+| OAuth2 授权服务器 | `chaos-authorization-starter` | `chaos-archetype-auth-server` |
 | 非 Web 服务（MQ 消费者、批处理） | `chaos-application-starter` | — |
 
 按需追加能力 starter：`chaos-mybatis-starter`（数据库、多租户、数据权限）、`chaos-redis-starter`（生产必需：集群限流、幂等、token 黑名单、两级缓存）、
-`chaos-mq-starter` + `chaos-mq-jdbc-starter`（可靠消息与 JDBC outbox）、`chaos-job-starter`、`chaos-process-starter` / `chaos-process-jdbc-starter` / `chaos-process-redis-starter`（状态机与流程引擎）、
-`chaos-storage-starter`、`chaos-cloud-starter`（含 `chaos-http-client` 服务间调用与 OpenFeign 解包）、`chaos-cloud-nacos-starter`、`chaos-audit-jdbc-starter`。
-Excel 导入导出与文档签名安全校验直接引入 `com.chaos:chaos-excel`。
+`chaos-mq-starter`（可靠消息与 JDBC outbox，含 `spring-boot-starter-jdbc` 时自动启用落库）、`chaos-process-starter`（状态机与流程引擎，含 JDBC/Redis 时按配置切换持久化）、
+`chaos-storage-starter`、`chaos-cloud-starter`（含 `chaos-http-client` 服务间调用与 OpenFeign 解包）、`chaos-cloud-nacos-starter`（注册、配置与网关动态路由）。
+分布式定时任务（`DistributedJobRunner`）已整合进 `chaos-application-starter`（`chaos-service`），Excel 导入导出与文档签名安全校验直接引入 `com.chaos:chaos-excel`。
 
 ## 快速开始
 

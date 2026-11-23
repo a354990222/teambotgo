@@ -4,7 +4,7 @@
 
 MDC 字段、JSON logback include 和访问日志字段约定。
 
-> 仓库中不存在 `chaos-log` 模块。`MdcKeys`、`MdcSupport`（包 `com.chaos.trace.log`）以及 logback/log4j2 模板都位于 `chaos-observability/chaos-trace`，对外 artifactId 为 `chaos-trace`。
+> 仓库中不存在 `chaos-log` 模块。`MdcKeys`、`MdcSupport`（包 `com.chaos.trace.log`）以及 logback/log4j2 模板都位于 `chaos-trace`。
 
 ## 依赖方式
 

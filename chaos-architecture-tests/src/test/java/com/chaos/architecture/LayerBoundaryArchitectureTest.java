@@ -43,18 +43,24 @@ class LayerBoundaryArchitectureTest {
             "chaos-foundation/chaos-core/src/main/java",
             "chaos-security/chaos-security-api/src/main/java",
             "chaos-foundation/chaos-domain/src/main/java",
-            "chaos-audit/chaos-audit/src/main/java",
+            "chaos-audit/src/main/java",
             "chaos-tenant/src/main/java",
-            "chaos-mq/chaos-mq/src/main/java",
-            "chaos-storage/chaos-storage/src/main/java"
+            "chaos-mq/src/main/java",
+            "chaos-storage/src/main/java"
     );
 
     /**
      * 契约模块中允许依赖框架的可选适配器包：只有引入对应框架的应用才会加载，契约本身仍保持框架无关。
      */
     private static final List<String> CONTRACT_ADAPTER_PACKAGES = List.of(
+            "chaos-audit/src/main/java/com/chaos/audit/jdbc",
             "chaos-tenant/src/main/java/com/chaos/tenant/servlet",
-            "chaos-mq/chaos-mq/src/main/java/com/chaos/mq/reliable/actuate"
+            "chaos-mq/src/main/java/com/chaos/mq/reliable/actuate",
+            "chaos-mq/src/main/java/com/chaos/mq/jdbc",
+            "chaos-mq/src/main/java/com/chaos/mq/kafka",
+            "chaos-mq/src/main/java/com/chaos/mq/rocketmq",
+            "chaos-storage/src/main/java/com/chaos/storage/minio",
+            "chaos-storage/src/main/java/com/chaos/storage/oss"
     );
 
     private static final List<String> FORBIDDEN_IMPORT_PREFIXES = List.of(
@@ -422,7 +428,7 @@ class LayerBoundaryArchitectureTest {
     @Test
     void gatewayJwtValidationShouldFailClosedWithoutDecoder() throws IOException {
         Path filter = projectRoot().resolve(
-                "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/JwtAuthenticationGatewayFilter.java"
+                "chaos-gateway/src/main/java/com/chaos/gateway/filter/JwtAuthenticationGatewayFilter.java"
         );
         String source = ProjectModel.codeWithoutComments(filter);
 
@@ -438,7 +444,7 @@ class LayerBoundaryArchitectureTest {
     @Test
     void gatewayDefaultWhitelistShouldNotExposePrometheus() throws IOException {
         Path properties = projectRoot().resolve(
-                "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/config/ChaosGatewayProperties.java"
+                "chaos-gateway/src/main/java/com/chaos/gateway/config/ChaosGatewayProperties.java"
         );
         String source = ProjectModel.codeWithoutComments(properties);
 
@@ -492,7 +498,7 @@ class LayerBoundaryArchitectureTest {
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/security/ChaosSecurityAutoConfiguration.java"
         );
         Path gatewayFilter = projectRoot().resolve(
-                "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/OpaqueTokenAuthenticationGatewayFilter.java"
+                "chaos-gateway/src/main/java/com/chaos/gateway/filter/OpaqueTokenAuthenticationGatewayFilter.java"
         );
         Path authorizationCustomizer = projectRoot().resolve(
                 "chaos-security/chaos-authorization/src/main/java/com/chaos/authorization/token/ChaosTokenCustomizer.java"
@@ -659,7 +665,7 @@ class LayerBoundaryArchitectureTest {
                 "chaos-foundation/chaos-core/src/main/java/com/chaos/core/net/ForwardedClientIpResolver.java"
         );
         Path resolver = projectRoot().resolve(
-                "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/ClientIpResolver.java"
+                "chaos-gateway/src/main/java/com/chaos/gateway/filter/ClientIpResolver.java"
         );
 
         assertTrue(Files.exists(matcher), "Gateway 黑名单必须提供 CIDR 匹配能力");
@@ -681,7 +687,7 @@ class LayerBoundaryArchitectureTest {
         Set<String> gatewayFields = jsonTemplateFields(projectRoot().resolve(
                 "chaos-foundation/chaos-core/src/main/java/com/chaos/core/result/ApiResultJson.java"));
         String gatewayWriter = ProjectModel.codeWithoutComments(projectRoot().resolve(
-                "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/GatewayErrorResponseWriter.java"));
+                "chaos-gateway/src/main/java/com/chaos/gateway/filter/GatewayErrorResponseWriter.java"));
 
         assertFalse(resultFields.isEmpty(), "未能解析出 Result 的记录组件");
         assertEquals(resultFields, apiResultFields,
@@ -724,7 +730,7 @@ class LayerBoundaryArchitectureTest {
     @Test
     void gatewayNacosRoutesShouldStayOptionalExtension() throws IOException {
         Path root = projectRoot();
-        Path gatewayNacosRoot = root.resolve("chaos-gateway/chaos-gateway-nacos");
+        Path gatewayNacosRoot = root.resolve("chaos-gateway/src/main/java/com/chaos/gateway/nacos");
         Path autoConfiguration = root.resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/gateway/nacos/ChaosGatewayNacosAutoConfiguration.java"
         );
@@ -732,6 +738,9 @@ class LayerBoundaryArchitectureTest {
 
         ProjectModel project = ProjectModel.load();
         for (Path javaFile : ProjectModel.mainSources(project.module("chaos-gateway"))) {
+            if (javaFile.startsWith(gatewayNacosRoot)) {
+                continue;
+            }
             boolean importsNacos = ProjectModel.imports(javaFile).stream()
                     .anyMatch(imported -> imported.startsWith("com.alibaba.nacos")
                             || imported.startsWith("com.alibaba.cloud.nacos"));
@@ -741,18 +750,23 @@ class LayerBoundaryArchitectureTest {
         }
 
         assertTrue(violations.isEmpty(), () -> "chaos-gateway 核心不得依赖 Nacos:\n" + String.join("\n", violations));
-        assertTrue(Files.exists(gatewayNacosRoot), "必须提供独立 chaos-gateway-nacos 扩展模块");
+        assertTrue(Files.exists(gatewayNacosRoot), "必须提供 com.chaos.gateway.nacos 扩展包");
+        assertTrue(
+                project.module("chaos-gateway").dependencies().stream()
+                        .anyMatch(dep -> "nacos-client".equals(dep.artifactId()) && dep.optional()),
+                "chaos-gateway 必须将 nacos-client 声明为 optional 依赖"
+        );
         String autoSource = ProjectModel.codeWithoutComments(autoConfiguration);
         assertTrue(
                 autoSource.contains("NacosRouteDefinitionRepository")
                         && autoSource.contains("beforeName = \"org.springframework.cloud.gateway.config.GatewayAutoConfiguration\""),
                 "Gateway Nacos 自动装配必须注册 Nacos 路由仓库，并先于 Gateway 默认路由仓库执行"
         );
-        List<ProjectModel.Dependency> starterDeps = project.module("chaos-gateway-nacos-starter").dependencies();
+        List<ProjectModel.Dependency> starterDeps = project.module("chaos-cloud-nacos-starter").dependencies();
         assertTrue(
                 starterDeps.stream().anyMatch(dep -> "spring-cloud-starter-alibaba-nacos-config".equals(dep.artifactId()))
-                        && starterDeps.stream().anyMatch(dep -> "chaos-gateway-starter".equals(dep.artifactId())),
-                "Gateway Nacos starter 必须聚合 Gateway starter 和 Nacos Config starter"
+                        && starterDeps.stream().anyMatch(dep -> "chaos-autoconfigure".equals(dep.artifactId())),
+                "Nacos starter 必须聚合自动装配模块和 Nacos Config starter"
         );
     }
 
@@ -766,13 +780,13 @@ class LayerBoundaryArchitectureTest {
                         "chaos-security/chaos-security/src/main/java/com/chaos/security/permission/PermissionAspect.java"
                 ),
                 projectRoot().resolve(
-                        "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/JwtAuthenticationGatewayFilter.java"
+                        "chaos-gateway/src/main/java/com/chaos/gateway/filter/JwtAuthenticationGatewayFilter.java"
                 ),
                 projectRoot().resolve(
-                        "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/BlacklistFilter.java"
+                        "chaos-gateway/src/main/java/com/chaos/gateway/filter/BlacklistFilter.java"
                 ),
                 projectRoot().resolve(
-                        "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/TenantGatewayFilter.java"
+                        "chaos-gateway/src/main/java/com/chaos/gateway/filter/TenantGatewayFilter.java"
                 )
         );
         List<String> violations = new ArrayList<>();
@@ -841,10 +855,10 @@ class LayerBoundaryArchitectureTest {
     @Test
     void auditJdbcShouldProvidePersistenceAdapter() throws IOException {
         Path publisher = projectRoot().resolve(
-                "chaos-audit/chaos-audit-jdbc/src/main/java/com/chaos/audit/jdbc/JdbcAuditEventPublisher.java"
+                "chaos-audit/src/main/java/com/chaos/audit/jdbc/JdbcAuditEventPublisher.java"
         );
         Path schema = projectRoot().resolve(
-                "chaos-audit/chaos-audit-jdbc/src/main/resources/db/chaos-audit-schema.sql"
+                "chaos-audit/src/main/resources/db/chaos-audit-schema.sql"
         );
         String source = ProjectModel.codeWithoutComments(publisher);
 
@@ -852,16 +866,15 @@ class LayerBoundaryArchitectureTest {
                 source.contains("implements AuditEventPublisher") && source.contains("JdbcOperations"),
                 "JDBC 审计发布器必须实现 AuditEventPublisher 端口并通过 Spring JDBC 落库"
         );
-        assertTrue(Files.exists(schema), "JDBC 审计模块必须提供建表脚本");
+        assertTrue(Files.exists(schema), "JDBC 审计适配器必须提供建表脚本");
         assertTrue(
                 Files.readString(schema, StandardCharsets.UTF_8).contains("chaos_audit_event"),
                 "JDBC 审计建表脚本必须创建 chaos_audit_event"
         );
-        List<ProjectModel.Dependency> starterDeps = ProjectModel.load().module("chaos-audit-jdbc-starter").dependencies();
         assertTrue(
-                starterDeps.stream().anyMatch(dep -> dep.isChaos() && "chaos-autoconfigure".equals(dep.artifactId()))
-                        && starterDeps.stream().anyMatch(dep -> dep.isChaos() && "chaos-audit-jdbc".equals(dep.artifactId())),
-                "JDBC 审计 starter 必须聚合统一自动装配模块与 JDBC 审计库"
+                ProjectModel.load().module("chaos-audit").dependencies().stream()
+                        .anyMatch(dep -> "spring-jdbc".equals(dep.artifactId()) && dep.optional()),
+                "chaos-audit 必须将 spring-jdbc 声明为 optional 依赖"
         );
     }
 
@@ -912,7 +925,7 @@ class LayerBoundaryArchitectureTest {
     @Test
     void gatewayShouldValidateTenantStatusAtEntrance() throws IOException {
         Path filter = projectRoot().resolve(
-                "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/TenantGatewayFilter.java"
+                "chaos-gateway/src/main/java/com/chaos/gateway/filter/TenantGatewayFilter.java"
         );
         Path autoConfiguration = projectRoot().resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/gateway/ChaosGatewayAutoConfiguration.java"
@@ -936,7 +949,7 @@ class LayerBoundaryArchitectureTest {
      */
     @Test
     void mqCoreShouldProvideReliableMessageContracts() throws IOException {
-        Path reliableRoot = projectRoot().resolve("chaos-mq/chaos-mq/src/main/java/com/chaos/mq/reliable");
+        Path reliableRoot = projectRoot().resolve("chaos-mq/src/main/java/com/chaos/mq/reliable");
         Path repository = reliableRoot.resolve("OutboxMessageRepository.java");
         Path dispatcher = reliableRoot.resolve("ReliableMessageDispatcher.java");
         Path status = reliableRoot.resolve("ReliableMessageStatus.java");
@@ -955,26 +968,20 @@ class LayerBoundaryArchitectureTest {
     @Test
     void mqShouldProvideJdbcOutboxAdapterOutsideCore() throws IOException {
         Path root = projectRoot();
-        Path mqParent = root.resolve("chaos-mq/pom.xml");
         Path repositoryPort = root.resolve(
-                "chaos-mq/chaos-mq/src/main/java/com/chaos/mq/reliable/OutboxMessageRepository.java"
+                "chaos-mq/src/main/java/com/chaos/mq/reliable/OutboxMessageRepository.java"
         );
         Path dispatcher = root.resolve(
-                "chaos-mq/chaos-mq/src/main/java/com/chaos/mq/reliable/ReliableMessageDispatcher.java"
+                "chaos-mq/src/main/java/com/chaos/mq/reliable/ReliableMessageDispatcher.java"
         );
         Path jdbcRepository = root.resolve(
-                "chaos-mq/chaos-mq-jdbc/src/main/java/com/chaos/mq/jdbc/JdbcOutboxMessageRepository.java"
+                "chaos-mq/src/main/java/com/chaos/mq/jdbc/JdbcOutboxMessageRepository.java"
         );
-        Path schema = root.resolve("chaos-mq/chaos-mq-jdbc/src/main/resources/db/chaos-mq-outbox-schema.sql");
+        Path schema = root.resolve("chaos-mq/src/main/resources/db/chaos-mq-outbox-schema.sql");
         Path autoConfiguration = root.resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/mq/ChaosMqAutoConfiguration.java"
         );
 
-        Element mqParentXml = ProjectModel.parseXml(mqParent);
-        List<String> mqSubmodules = ProjectModel.elements(mqParentXml, "module").stream()
-                .map(el -> el.getTextContent().trim())
-                .toList();
-        assertTrue(mqSubmodules.contains("chaos-mq-jdbc"), "MQ 聚合模块必须包含 chaos-mq-jdbc");
         assertTrue(
                 ProjectModel.codeWithoutComments(repositoryPort).contains("claimDueMessages"),
                 "outbox 仓储端口必须提供 claimDueMessages 以支持多实例派发"
@@ -996,7 +1003,7 @@ class LayerBoundaryArchitectureTest {
                 schemaSql.contains("chaos_mq_outbox")
                         && schemaSql.contains("claimed_at")
                         && schemaSql.contains("claim_owner"),
-                "MQ JDBC 模块必须提供 outbox 建表脚本和 claim 字段"
+                "MQ 模块必须提供 outbox 建表脚本和 claim 字段"
         );
         String mqAutoSource = ProjectModel.codeWithoutComments(autoConfiguration);
         assertTrue(
@@ -1006,9 +1013,14 @@ class LayerBoundaryArchitectureTest {
         );
         ProjectModel project = ProjectModel.load();
         assertTrue(
-                project.module("chaos-mq-jdbc-starter").dependencies().stream()
-                        .anyMatch(dep -> dep.isChaos() && "chaos-mq-jdbc".equals(dep.artifactId())),
-                "MQ JDBC starter 必须聚合 chaos-mq-jdbc"
+                project.module("chaos-mq").dependencies().stream()
+                        .anyMatch(dep -> "spring-jdbc".equals(dep.artifactId()) && dep.optional()),
+                "chaos-mq 必须将 spring-jdbc 声明为 optional 依赖"
+        );
+        assertTrue(
+                project.module("chaos-mq-starter").dependencies().stream()
+                        .anyMatch(dep -> dep.isChaos() && "chaos-mq".equals(dep.artifactId())),
+                "MQ starter 必须聚合 chaos-mq"
         );
     }
 
@@ -1127,13 +1139,13 @@ class LayerBoundaryArchitectureTest {
     void tracePropagationShouldSupportW3cHeaders() throws IOException {
         Path headers = projectRoot().resolve("chaos-foundation/chaos-core/src/main/java/com/chaos/core/constant/ChaosHeaders.java");
         Path traceHeaders = projectRoot().resolve(
-                "chaos-observability/chaos-trace/src/main/java/com/chaos/trace/TraceHeaders.java"
+                "chaos-trace/src/main/java/com/chaos/trace/TraceHeaders.java"
         );
         Path observationFilter = projectRoot().resolve(
-                "chaos-observability/chaos-trace/src/main/java/com/chaos/trace/monitor/ChaosObservationFilter.java"
+                "chaos-trace/src/main/java/com/chaos/trace/monitor/ChaosObservationFilter.java"
         );
         Path webFilter = projectRoot().resolve("chaos-web/src/main/java/com/chaos/web/filter/TraceFilter.java");
-        Path gatewayFilter = projectRoot().resolve("chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/GatewayTraceFilter.java");
+        Path gatewayFilter = projectRoot().resolve("chaos-gateway/src/main/java/com/chaos/gateway/filter/GatewayTraceFilter.java");
 
         String headersCode = ProjectModel.codeWithoutComments(headers);
         assertTrue(
@@ -1509,7 +1521,7 @@ class LayerBoundaryArchitectureTest {
     @Test
     void traceContextShouldProvideAsyncPropagationBoundary() throws IOException {
         Path traceContext = projectRoot().resolve(
-                "chaos-observability/chaos-trace/src/main/java/com/chaos/trace/TraceContext.java"
+                "chaos-trace/src/main/java/com/chaos/trace/TraceContext.java"
         );
         Path requestContext = projectRoot().resolve(
                 "chaos-foundation/chaos-core/src/main/java/com/chaos/core/context/RequestContext.java"
@@ -1518,7 +1530,7 @@ class LayerBoundaryArchitectureTest {
                 "chaos-tenant/src/main/java/com/chaos/tenant/TenantContext.java"
         );
         Path snapshot = projectRoot().resolve(
-                "chaos-observability/chaos-trace/src/main/java/com/chaos/trace/TraceContextSnapshot.java"
+                "chaos-trace/src/main/java/com/chaos/trace/TraceContextSnapshot.java"
         );
         Path taskDecorator = projectRoot().resolve(
                 "chaos-service/src/main/java/com/chaos/service/context/TraceContextTaskDecorator.java"

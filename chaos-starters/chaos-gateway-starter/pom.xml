@@ -18,13 +18,13 @@
         灰度、访问日志、审计、Trace，以及健康检查/指标端点（Actuator + Prometheus）。
 
         默认使用单机内存限流；多实例部署时追加 chaos-redis-starter，自动切换为 Redis 集群限流并启用 JWT 黑名单。
-        Nacos 动态路由追加 chaos-gateway-nacos-starter。
+        Nacos 动态路由追加 chaos-cloud-nacos-starter。
         注意：网关是 WebFlux 应用，不要同时引入 chaos-web-starter / chaos-web-service-starter（Servlet）。
     -->
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-audit-starter</artifactId>
+            <artifactId>chaos-audit</artifactId>
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>

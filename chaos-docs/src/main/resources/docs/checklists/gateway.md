@@ -9,7 +9,7 @@
 
 - [ ] **[启动拦截]** 已引入 `chaos-redis-starter`：多实例必须使用 Redis 集群限流，`InMemoryRateLimiter` 在生产 profile 下不允许使用。
 - [ ] 没有引入 `chaos-web-starter` / `chaos-web-service-starter`（Servlet）。
-- [ ] 使用 Nacos 动态路由时引入 `chaos-gateway-nacos-starter`。
+- [ ] 使用 Nacos 动态路由时引入 `chaos-cloud-nacos-starter` 并配置 `chaos.gateway.nacos-routes.enabled=true`。
 
 ## 2. 生产模式识别
 

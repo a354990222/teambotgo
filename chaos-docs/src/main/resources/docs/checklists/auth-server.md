@@ -1,6 +1,6 @@
 # 生产检查清单：OAuth2 授权服务器
 
-适用于 `chaos-auth-server-starter`（或 `chaos-archetype-auth-server` 生成的项目）。标注 **[启动拦截]** 的条目缺失时，
+适用于 `chaos-authorization-starter`（或 `chaos-archetype-auth-server` 生成的项目）。标注 **[启动拦截]** 的条目缺失时，
 授权服务器生产安全检查会阻断启动，报错会逐项列出违规内容；其余条目需要人工确认。
 
 配置参考：[templates/auth-server/application-prod.yml](../templates/auth-server/application-prod.yml)。
@@ -30,7 +30,7 @@
 - [ ] **[启动拦截]** 授权记录使用持久化存储（模板为 Redis 引用 token；JWT 模式使用 JDBC 存储），不是内存实现。
 - [ ] **[启动拦截]** token 黑名单为 Redis 实现，不是 `NoopJwtRevocationService`；资源服务 / 网关与授权服务器共用同一 Redis 黑名单 key。
 - [ ] **[启动拦截]** 启用踢人下线时，会话注册表为 Redis 实现。
-- [ ] **[启动拦截]** 提供有效的审计发布器（引入 `chaos-audit-jdbc-starter` 可落库）。
+- [ ] **[启动拦截]** 提供有效的审计发布器（接入 `spring-boot-starter-jdbc` 并设置 `chaos.audit.jdbc.enabled=true` 可落库）。
 
 ## 5. 暴力破解防护
 

@@ -33,7 +33,7 @@
             <groupId>com.chaos</groupId>
             <artifactId>chaos-redis-starter</artifactId>
         </dependency>
-            Nacos 动态路由：chaos-gateway-nacos-starter
+            Nacos 动态路由：chaos-cloud-nacos-starter
         -->
 
         <dependency>

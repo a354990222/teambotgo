@@ -38,7 +38,7 @@ python3 scripts/generate-configuration-reference.py
 
 | 配置项 | 类型 | 默认值 | 说明 | 可选值 | 所属 artifact |
 | --- | --- | --- | --- | --- | --- |
-| `chaos.audit.async.enabled` | `Boolean` | `false` | 是否异步发布审计事件。 默认关闭，保持同步写入的既有行为。 配合 `chaos-audit-jdbc` 时强烈建议开启 ： 同步模式下每次登录、每次权限拒绝都是请求线程内的一次数据库写入，扫描器批量打未授权接口 会把审计写入变成可被外部触发的放大点。 |  | `chaos-autoconfigure` |
+| `chaos.audit.async.enabled` | `Boolean` | `false` | 是否异步发布审计事件。 默认关闭，保持同步写入的既有行为。 开启 `chaos.audit.jdbc.enabled=true` 落库时强烈建议开启 ： 同步模式下每次登录、每次权限拒绝都是请求线程内的一次数据库写入，扫描器批量打未授权接口 会把审计写入变成可被外部触发的放大点。 |  | `chaos-autoconfigure` |
 | `chaos.audit.async.queue-capacity` | `Integer` | `10000` | 待发布事件队列容量。 队列满时丢弃新事件并计入 `chaos.audit.events{outcome="dropped"`}，绝不阻塞业务线程： 队列满说明下游已经跟不上，此时阻塞业务只会把下游故障放大成全站故障。 合规要求零丢失时应关闭异步，或改用 MQ 实现。 |  | `chaos-autoconfigure` |
 | `chaos.audit.enabled` | `Boolean` | `true` | 是否启用审计事件发布；关闭后注册 Noop 发布器。 |  | `chaos-autoconfigure` |
 | `chaos.audit.jdbc.application-generated-id` | `Boolean` | `false` | 是否使用 IdGenerator 分配审计主键；默认 false 保留数据库生成主键的行为。启用后必须提供 IdGenerator Bean 和 BIGINT id 列。 |  | `chaos-autoconfigure` |
@@ -166,12 +166,12 @@ python3 scripts/generate-configuration-reference.py
 | `chaos.gateway.jwt.jws-algorithms` | `List<String>` |  | 允许的 JWS 签名算法，默认只接受 RS256，防止算法混淆。 | `RS256`, `RS384`, `RS512`, `ES256`, `PS256` | `chaos-gateway` |
 | `chaos.gateway.jwt.revocation-check-enabled` | `Boolean` | `true` | 是否在网关检查 JWT 黑名单。 |  | `chaos-gateway` |
 | `chaos.gateway.jwt.validation-enabled` | `Boolean` | `true` | 是否在网关校验 JWT。 |  | `chaos-gateway` |
-| `chaos.gateway.nacos-routes.clear-on-empty` | `Boolean` | `false` | Nacos 配置为空时是否清空当前动态路由。 |  | `chaos-gateway-nacos` |
-| `chaos.gateway.nacos-routes.data-id` | `String` | `chaos-gateway-routes.yaml` | 路由配置 dataId。 |  | `chaos-gateway-nacos` |
-| `chaos.gateway.nacos-routes.enabled` | `Boolean` | `false` | 是否启用 Nacos 动态路由。 |  | `chaos-gateway-nacos` |
-| `chaos.gateway.nacos-routes.fail-fast` | `Boolean` | `false` | 初始加载失败时是否阻止应用启动。 |  | `chaos-gateway-nacos` |
-| `chaos.gateway.nacos-routes.group` | `String` | `DEFAULT_GROUP` | 路由配置 group。 |  | `chaos-gateway-nacos` |
-| `chaos.gateway.nacos-routes.timeout-ms` | `Long` | `3000` | 初始拉取配置超时时间，单位毫秒。 |  | `chaos-gateway-nacos` |
+| `chaos.gateway.nacos-routes.clear-on-empty` | `Boolean` | `false` | Nacos 配置为空时是否清空当前动态路由。 |  | `chaos-gateway` |
+| `chaos.gateway.nacos-routes.data-id` | `String` | `chaos-gateway-routes.yaml` | 路由配置 dataId。 |  | `chaos-gateway` |
+| `chaos.gateway.nacos-routes.enabled` | `Boolean` | `false` | 是否启用 Nacos 动态路由。 |  | `chaos-gateway` |
+| `chaos.gateway.nacos-routes.fail-fast` | `Boolean` | `false` | 初始加载失败时是否阻止应用启动。 |  | `chaos-gateway` |
+| `chaos.gateway.nacos-routes.group` | `String` | `DEFAULT_GROUP` | 路由配置 group。 |  | `chaos-gateway` |
+| `chaos.gateway.nacos-routes.timeout-ms` | `Long` | `3000` | 初始拉取配置超时时间，单位毫秒。 |  | `chaos-gateway` |
 | `chaos.gateway.oauth2-clients` | `Map<String,OAuth2Client>` |  | 由 Gateway 代理 OAuth2 token 请求时使用的保密客户端注册。 注册名称由路由上的 `OAuth2ClientAuthentication` 过滤器引用。这里必须配置原始客户端密钥， 不能配置授权服务器保存的 BCrypt 摘要。 |  | `chaos-gateway` |
 | `chaos.gateway.opaque-token.cache-max-size` | `Integer` | `10000` | introspection 本地缓存最多保留的 token 数。 |  | `chaos-gateway` |
 | `chaos.gateway.opaque-token.cache-ttl` | `Duration` | `30s` | introspection 成功结果的本地缓存时长；实际 TTL 取该值与 token exp 的较小值，0 表示不缓存。 缓存会让已撤销 token 在 TTL 内继续可用，属于性能与撤销实时性的折中。 |  | `chaos-gateway` |
@@ -208,7 +208,7 @@ python3 scripts/generate-configuration-reference.py
 
 | 配置项 | 类型 | 默认值 | 说明 | 可选值 | 所属 artifact |
 | --- | --- | --- | --- | --- | --- |
-| `chaos.job.enabled` | `Boolean` | `true` | 是否启用 chaos-job 自动装配。 |  | `chaos-autoconfigure` |
+| `chaos.job.enabled` | `Boolean` | `true` | 是否启用定时任务自动装配。 |  | `chaos-autoconfigure` |
 | `chaos.job.lock.key-prefix` | `String` | `chaos:job:` | 任务锁 key 前缀，最终 key 为 `key-prefix + jobName`（Redis 实现还会叠加 chaos.redis.key-prefix）。 |  | `chaos-autoconfigure` |
 | `chaos.job.lock.lease-time` | `Duration` |  | 锁租约。为空时使用 Redisson watchdog 自动续期，任务执行多久锁就持有多久； 显式设置时必须大于任务最长执行时间，否则锁到期后其他实例可能并发执行。 |  | `chaos-autoconfigure` |
 | `chaos.job.scheduling-enabled` | `Boolean` | `true` | 是否开启 Spring `@EnableScheduling`。默认开启以兼容旧版本；应用自行管理调度（如 XXL-JOB）时可关闭。 |  | `chaos-autoconfigure` |
@@ -348,12 +348,12 @@ python3 scripts/generate-configuration-reference.py
 | --- | --- | --- | --- | --- | --- |
 | `chaos.storage.allowed-content-types` | `List<String>` |  | 允许上传的 contentType 白名单，支持 `image/*` 通配；为空表示不限制。 |  | `chaos-autoconfigure` |
 | `chaos.storage.max-object-size` | `DataSize` |  | 单个对象最大大小，例如 `20MB`；为空表示不限制。大小未知的流式上传会在读取超限时中断。 |  | `chaos-autoconfigure` |
-| `chaos.storage.minio.access-key` | `String` |  | 访问密钥。 |  | `chaos-storage-minio` |
-| `chaos.storage.minio.endpoint` | `String` |  | 服务端地址。 |  | `chaos-storage-minio` |
-| `chaos.storage.minio.secret-key` | `String` |  | 访问密钥 Secret。 |  | `chaos-storage-minio` |
-| `chaos.storage.oss.access-key-id` | `String` |  | 访问密钥。 |  | `chaos-storage-oss` |
-| `chaos.storage.oss.access-key-secret` | `String` |  | 访问密钥 Secret。 |  | `chaos-storage-oss` |
-| `chaos.storage.oss.endpoint` | `String` |  | OSS endpoint。 |  | `chaos-storage-oss` |
+| `chaos.storage.minio.access-key` | `String` |  | 访问密钥。 |  | `chaos-storage` |
+| `chaos.storage.minio.endpoint` | `String` |  | 服务端地址。 |  | `chaos-storage` |
+| `chaos.storage.minio.secret-key` | `String` |  | 访问密钥 Secret。 |  | `chaos-storage` |
+| `chaos.storage.oss.access-key-id` | `String` |  | 访问密钥。 |  | `chaos-storage` |
+| `chaos.storage.oss.access-key-secret` | `String` |  | 访问密钥 Secret。 |  | `chaos-storage` |
+| `chaos.storage.oss.endpoint` | `String` |  | OSS endpoint。 |  | `chaos-storage` |
 | `chaos.storage.provider` | `Provider` | `none` | 默认对象存储 provider；未设置时不自动注册 ObjectStorageClient。 | `none`, `minio`, `oss` | `chaos-autoconfigure` |
 
 ## chaos.tenant

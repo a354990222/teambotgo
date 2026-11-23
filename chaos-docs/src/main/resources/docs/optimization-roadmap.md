@@ -35,7 +35,7 @@
 | 事项 | 现状 | 备注 |
 | --- | --- | --- |
 | 熔断、舱壁与超时预算 | 已基于 `chaos-core` 原生弹性内核（`SlidingWindowCircuitBreaker` + `SemaphoreBulkhead` + `ResilienceExecutor`）接入 Gateway 与 OpenFeign / `ServiceHttpClients` | 离线仓库未缓存外部 `resilience4j` 实现制品；如需替换为 Resilience4j 生态适配器，可在在线仓库补充依赖后接入 |
-| 定时任务 | 文档已明确 `chaos-job` 定位为“只做分布式锁互斥 + Trace/MDC 上下文” | 无分片、失败重试、执行记录、手动触发；需完整调度台时由业务侧接入 XXL-Job / PowerJob 并关闭 `chaos.job.scheduling-enabled` |
+| 定时任务 | 分布式定时任务能力已合并进 `chaos-service`（`com.chaos.service.job`），定位仍为“只做分布式锁互斥 + Trace/MDC 上下文” | 无分片、失败重试、执行记录、手动触发；需完整调度台时由业务侧接入 XXL-Job / PowerJob 并关闭 `chaos.job.scheduling-enabled` |
 | 响应式业务栈 | 已新增 `chaos-web-reactive` 并在 `chaos-cloud-reactive-starter` 与 `ChaosWebReactiveAutoConfiguration` 装配完成 | 提供 WebFlux 统一 `ApiResult`、全局异常、Reactor Context Trace、非阻塞 Redis/InMemory 限流与幂等、XSS 防护头 |
 | 虚拟线程 | 已验证 `spring.threads.virtual.enabled=true` 下 `TaskExecutionAutoConfiguration` 自动接入 `TraceContextTaskDecorator`，并补充了 `VirtualThreadContextPropagationTest` 与文档说明 | 仍需在开启真实连接池 / Redisson 的全链路压测下观察 `synchronized` pin 线程与池大小表现 |
 | 限流失败告警 | 网关 `chaos.gateway.rate-limit.fail-open` 默认 `true`，已在 [chaos-gateway.md](modules/chaos-gateway.md) 给出 Prometheus 告警规则示例 | 需在部署侧监控体系实际导入 `chaos.ratelimit.errors{outcome="fail-open"}` 与熔断告警规则 |
@@ -65,7 +65,7 @@
 | P0 | 已完成 | 异步上下文与虚拟线程传播治理 | 避免线程池、异步任务及虚拟线程 trace/租户/Security/MDC 丢失或串扰 | `ContextPropagation` 接入 `TraceContext`、`TenantContext`、`SecurityContextPropagation`、`DataScopeContext`；`TaskDecorator` 自动适配线程池与虚拟线程 |
 | P0 | 已完成 | CI 与示例链路 Smoke | 提升提交质量和示例可验证性 | GitHub Actions 跑单测、发布治理 validate、结构扫描；提供 JWT 示例链路 smoke 脚本 |
 | P0 | 已完成 | Noop/InMemory 生产安全保护 | 提示危险兜底实现进入生产 | 生产模式检测危险 Noop / InMemory 默认实现并默认 fail-fast 阻断启动 |
-| P1 | 已完成 | MQ outbox JDBC 适配器 | 让可靠消息从端口走向可落库实现 | `chaos-mq-jdbc`、`chaos-mq-jdbc-starter`、批量清理、多实例 claim、建表脚本、健康检查 |
+| P1 | 已完成 | MQ outbox JDBC 适配器 | 让可靠消息从端口走向可落库实现 | `JdbcOutboxMessageRepository`（现位于 `chaos-mq`）、批量清理、多实例 claim、建表脚本、健康检查 |
 | P1 | 已完成 | 幂等响应回放与错误文案国际化 | 超时重放与双语提示闭环 | 重复请求回放首次状态码/响应体/Location；`MessageSource` 中英文错误文案与 `Accept-Language` 支持 |
 | P0 | 已完成 | 治理指标、健康检查与审计异步化 | 让框架决策可观测且不阻塞业务线程 | 12 项低基数治理指标、outbox 积压健康检查、异步有界审计队列、`ChaosBuiltInDiagnosticRules`（含 Nacos 隔离校验） |
 | P0 | 已完成 | 跨栈服务调用与模块收口 | 消除 `chaos-transaction`/`chaos-storage-document` 碎片并补齐 Feign 契约 | 合并至 `chaos-service` / `chaos-excel`；新增 `chaos-http-client` 与 `ServiceHttpClient` / `ChaosFeignResultDecoder` / `ChaosFeignErrorDecoder` |

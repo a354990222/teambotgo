@@ -12,7 +12,7 @@ import org.springframework.validation.annotation.Validated;
 public class ChaosJobProperties {
 
     /**
-     * 是否启用 chaos-job 自动装配。
+     * 是否启用定时任务自动装配。
      */
     private boolean enabled = true;
 

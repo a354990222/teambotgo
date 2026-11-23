@@ -39,4 +39,4 @@ try (LockHandle handle = distributedLock.tryLock("report:daily", Duration.ZERO, 
 
 - 显式租约到期后锁会被自动释放，其他节点可能进入临界区；Redisson 实现会在释放时输出告警，`execute` 输出 ERROR。
 - 锁 key 受 `chaos.redis.key-prefix` 影响，修改前缀的发布窗口内新旧实例不互斥。
-- 定时任务互斥请使用 `DistributedJobRunner`，见 [chaos-job](../modules/chaos-job.md)。
+- 定时任务互斥请使用 `DistributedJobRunner`，见 [chaos-service](../modules/chaos-service.md#分布式定时任务comchaosservicejob)。

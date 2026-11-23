@@ -36,7 +36,7 @@ public class ChaosAuditProperties {
         /**
          * 是否异步发布审计事件。
          *
-         * <p>默认关闭，保持同步写入的既有行为。<b>配合 {@code chaos-audit-jdbc} 时强烈建议开启</b>：
+         * <p>默认关闭，保持同步写入的既有行为。<b>开启 {@code chaos.audit.jdbc.enabled=true} 落库时强烈建议开启</b>：
          * 同步模式下每次登录、每次权限拒绝都是请求线程内的一次数据库写入，扫描器批量打未授权接口
          * 会把审计写入变成可被外部触发的放大点。</p>
          */

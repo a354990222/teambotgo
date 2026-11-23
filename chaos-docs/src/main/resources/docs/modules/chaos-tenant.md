@@ -8,7 +8,7 @@
 
 ## 依赖方式
 
-业务应用优先通过 `chaos-tenant-starter`、`chaos-gateway-starter` 或 `chaos-web-service-starter` 间接引入。
+业务应用通过 `chaos-gateway-starter` 或 `chaos-web-service-starter` 自动引入；非 Web 应用可按需直接引入 `com.chaos:chaos-tenant`。
 
 ```xml
 <dependency>

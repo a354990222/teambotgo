@@ -1,4 +1,4 @@
-# 场景：OAuth2 授权服务器（chaos-auth-server-starter）—— 生产环境必填 / 强烈建议的配置
+# 场景：OAuth2 授权服务器（chaos-authorization-starter）—— 生产环境必填 / 强烈建议的配置
 #
 # 下列任一项缺失，生产安全检查都会阻断启动：非 localhost 的 issuer、非 {noop} 客户端密钥、固定 JWK 密钥对、
 # 持久化授权存储（本模板使用 Redis 引用 token）、Redis token 黑名单。

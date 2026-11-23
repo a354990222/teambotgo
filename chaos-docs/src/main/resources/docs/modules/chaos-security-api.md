@@ -18,7 +18,7 @@
 2.0 起这些模块只依赖 `chaos-security-api`，并由架构测试固化：
 
 - 规则 2：`chaos-security-api` 只能依赖 `chaos-core`，源码不得 import `org.springframework.*`；
-- 规则 3：`chaos-gateway`、`chaos-gateway-nacos`、`chaos-mybatis`、`chaos-redis` 不得依赖 `chaos-security` / `chaos-authorization` / `chaos-security-redis`。
+- 规则 3：`chaos-gateway`、`chaos-mybatis`、`chaos-redis` 不得依赖 `chaos-security` / `chaos-authorization` / `chaos-security-redis`。
 
 ## 使用
 

@@ -1,8 +1,7 @@
 package com.chaos.autoconfigure.job;
 
-import com.chaos.autoconfigure.redis.ChaosRedisAutoConfiguration;
 import com.chaos.core.lock.DistributedLock;
-import com.chaos.job.DistributedJobRunner;
+import com.chaos.service.job.DistributedJobRunner;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -23,7 +22,10 @@ import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProc
  * 需要在 Redis 自动装配之后执行，才能拿到 Redisson 分布式锁。</p>
  */
 @AutoConfiguration(afterName = "com.chaos.autoconfigure.redis.ChaosRedisAutoConfiguration")
-@ConditionalOnClass(value = ScheduledAnnotationBeanPostProcessor.class, name = "com.chaos.job.DistributedJobRunner")
+@ConditionalOnClass(
+        value = ScheduledAnnotationBeanPostProcessor.class,
+        name = {"com.chaos.service.job.DistributedJobRunner", "com.chaos.trace.TraceContext"}
+)
 @ConditionalOnProperty(prefix = "chaos.job", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(ChaosJobProperties.class)
 

@@ -27,8 +27,8 @@
         <module>chaos-dependencies</module>
         <module>chaos-boot-parent</module>
         <module>chaos-foundation</module>
+        <module>chaos-trace</module>
         <module>chaos-process</module>
-        <module>chaos-observability</module>
         <module>chaos-audit</module>
         <module>chaos-tenant</module>
         <module>chaos-security</module>
@@ -39,7 +39,6 @@
         <module>chaos-mq</module>
         <module>chaos-service</module>
         <module>chaos-gateway</module>
-        <module>chaos-job</module>
         <module>chaos-storage</module>
         <module>chaos-test-support</module>
         <module>chaos-architecture-tests</module>

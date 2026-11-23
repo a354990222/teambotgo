@@ -17,12 +17,12 @@
 
 如果只复用过滤器或配置属性，可以直接依赖 `chaos-gateway`。
 
-如需从 Nacos 动态加载 Gateway 路由，引入 `chaos-gateway-nacos-starter`：
+如需从 Nacos 动态加载 Gateway 路由，追加 `chaos-cloud-nacos-starter`：
 
 ```xml
 <dependency>
     <groupId>com.chaos</groupId>
-    <artifactId>chaos-gateway-nacos-starter</artifactId>
+    <artifactId>chaos-cloud-nacos-starter</artifactId>
 </dependency>
 ```
 
@@ -234,7 +234,7 @@ curl -H 'Authorization: Bearer eyJ...' \
 - 设置 `chaos.gateway.jwt.validation-enabled=false` 可只做 Authorization 头存在性校验，适合迁移期。
 - 设置 `chaos.security.token.type=opaque` 可让 Gateway 与普通资源服务使用同一套配置，
   通过授权服务器 introspection 校验 Redis/reference token。旧的 `chaos.gateway.token/opaque-token` 配置继续兼容。
-- 引入 `chaos-gateway-nacos-starter` 并设置 `chaos.gateway.nacos-routes.enabled=true` 后，Gateway 从 Nacos `dataId` 读取动态路由。
+- 引入 `chaos-cloud-nacos-starter` 并设置 `chaos.gateway.nacos-routes.enabled=true` 后，Gateway 从 Nacos `dataId` 读取动态路由。
 - `GatewayTraceFilter` 优先解析 W3C `traceparent`，并向下游同时写入 legacy header 和 W3C header。
 
 ## 安全模型
@@ -354,10 +354,23 @@ groups:
 - `tenant.fail-closed=true` 时租户缺失、未知或不可访问都会返回 403；生产环境应保持开启。
 - Gateway 统一降级处理器默认开启，会把连接失败、超时、未知主机等异常转换为 503 JSON；`fallback.include-unhandled=true` 时未知异常转换为 500 JSON。
 - 如果业务需要完全接管 WebFlux 异常响应，可以注册自定义 `GatewayFallbackExceptionHandler` 或其他 `ErrorWebExceptionHandler`。
-- Nacos 动态路由扩展不放入 `chaos-gateway` 核心模块，避免所有网关默认携带 Nacos SDK。
+- Nacos 动态路由扩展包（`com.chaos.gateway.nacos`）在 `chaos-gateway` 中以 `nacos-client` optional 依赖隔离，未引入 `chaos-cloud-nacos-starter` 或 Nacos Config 时不会激活。
 - Nacos 路由解析或监听刷新失败时默认保留上一次有效路由；`fail-fast=true` 只影响初始加载，适合生产环境阻止空路由或坏配置启动。
 - `clear-on-empty=false` 时空配置不会清空当前路由，避免误删 Nacos 内容导致全量路由消失；确需以空配置清表时显式设置为 `true`。
 - 路由配置会校验 `id`、`uri`、`predicates` 和重复 `id`；配置发布前建议在预发环境先验证。
+- 接入 Nacos 动态路由只需追加 `chaos-cloud-nacos-starter` 并启用配置：
+
+```yaml
+chaos:
+  gateway:
+    nacos-routes:
+      enabled: true
+      data-id: chaos-gateway-routes.yaml
+      group: DEFAULT_GROUP
+      timeout-ms: 3000
+      fail-fast: false
+      clear-on-empty: false
+```
 - 白名单只放健康检查、认证端点和明确公开接口。
 - 默认白名单只包含 `/actuator/health`；Prometheus 指标应通过内网、管理端口或显式白名单保护。
 - 灰度标签通过请求头透传，后续可和 Nacos metadata 或路由权重联动。

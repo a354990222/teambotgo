@@ -36,10 +36,6 @@
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-mq-jdbc-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
             <artifactId>chaos-cloud-starter</artifactId>
         </dependency>
         <dependency>

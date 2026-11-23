@@ -16,14 +16,14 @@
         场景 starter：Servlet 业务服务的“一站式入口”。
 
         设计约束（chaos-architecture-tests 校验）：
-        - 只聚合能力 starter，不直接依赖 chaos 库模块或三方框架，保证每项能力的依赖清单只维护在对应能力 starter 中；
+        - 聚合能力 starter 与无独立 starter 的横切能力模块（chaos-tenant / chaos-audit），不直接重复声明外置三方栈；
         - 不含 Java 代码。
 
         包含能力：统一响应/全局异常/Trace/日志模板（web）、JWT/opaque 资源服务器与 RBAC/ABAC（security）、
-        多租户上下文（tenant）、审计（audit，由 security-starter 带入）、事务/重试/领域事件/上下文传播/指标（application）。
+        多租户上下文（tenant）、审计（audit）、事务/重试/领域事件/分布式定时任务/上下文传播/指标（application）。
 
-        按需追加的能力 starter：chaos-mybatis-starter、chaos-redis-starter、chaos-mq-starter、chaos-job-starter、
-        chaos-storage-starter、chaos-cloud-starter、chaos-cloud-nacos-starter、chaos-audit-jdbc-starter。
+        按需追加的能力 starter：chaos-mybatis-starter、chaos-redis-starter、chaos-mq-starter、
+        chaos-process-starter、chaos-storage-starter、chaos-cloud-starter、chaos-cloud-nacos-starter。
     -->
     <dependencies>
         <dependency>
@@ -36,11 +36,11 @@
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-tenant-starter</artifactId>
+            <artifactId>chaos-tenant</artifactId>
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-audit-starter</artifactId>
+            <artifactId>chaos-audit</artifactId>
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>

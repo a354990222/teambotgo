@@ -2,9 +2,7 @@
 
 ## 职责
 
-MQ 能力域聚合目录。契约模块位于 `chaos-mq/chaos-mq`，对外 artifactId 为 `chaos-mq`；JDBC outbox、Kafka、RocketMQ 适配器位于同一能力域目录下。
-
-核心契约不依赖任何 Spring、JDBC 或 MQ SDK，提供：
+源码目录为 `chaos-mq`，对外 artifactId 为 `chaos-mq`；核心契约（`com.chaos.mq`）不依赖任何 Spring、JDBC 或 MQ SDK，同时内置可选的 JDBC outbox（`com.chaos.mq.jdbc`）、Kafka（`com.chaos.mq.kafka`）与 RocketMQ（`com.chaos.mq.rocketmq`）适配器（驱动依赖均为 `<optional>true</optional>`）。
 
 | 类型 | 说明 |
 | --- | --- |
@@ -80,8 +78,7 @@ public class OrderApplicationService {
 拆成两个自动装配类，是为了让 outbox 的 `@ConditionalOnBean` 能稳定看到基础设施 Bean。
 可选中间件相关的 Bean 放在带 `@ConditionalOnClass` 的嵌套配置里，classpath 缺少 Kafka 或 RocketMQ 时不会因方法签名反射失败。
 
-`chaos-mq-starter` 聚合 `chaos-autoconfigure`（mq）、`chaos-mq-kafka` 与 `chaos-mq-rocketmq`；需要 JDBC outbox 持久化时再引入 `chaos-mq-jdbc-starter`；
-Kafka / RocketMQ 的 SDK 由业务按需引入。
+`chaos-mq-starter` 聚合 `chaos-autoconfigure`（mq）与 `chaos-mq`。应用存在 `spring-boot-starter-jdbc` 时会自动启用 JDBC outbox 落库与定时派发；Kafka / RocketMQ SDK 由业务按需引入（`spring-kafka` 或 `rocketmq-spring-boot-starter`）。
 
 ## 配置
 
@@ -136,9 +133,9 @@ consumer.consume(envelope);
 
 ## 注意事项
 
-- 引入 starter 且同时存在 JDBC 与 MQ 时派发器默认运行，需要先创建 outbox 表（见 [chaos-mq-jdbc](chaos-mq-jdbc.md)）；
+- 引入 starter 且同时存在 JDBC 与 MQ 时派发器默认运行，需要先创建 outbox 表（见下方 [JDBC Outbox 持久化适配](#jdbc-outbox-持久化适配)）；
   表不存在时派发线程只记录 WARN，不会退出。
-- domain / application 层只依赖 `chaos-mq` 的接口，不依赖 Kafka 或 RocketMQ SDK。
+- domain / application 层只依赖 `com.chaos.mq` 契约接口，不依赖 JDBC、Kafka 或 RocketMQ SDK。
 
 - 语义是 at-least-once：发布成功但回写失败时，claim 超时后会重发，消费端必须幂等。
 - `ReliableMessagePublisher` 只实现 `OutboxPublisher`，不再实现 `MessagePublisher`。旧代码把它注入为 `MessagePublisher` 的地方需要改为注入 `OutboxPublisher`。
@@ -168,3 +165,22 @@ chaos:
 ```
 
 详见 [治理指标与健康检查](../capabilities/metrics.md)。
+
+## JDBC Outbox 持久化适配
+
+`com.chaos.mq.jdbc.JdbcOutboxMessageRepository` 在容器存在 `JdbcOperations` 时自动装配，模块内置四份方言脚本（classpath 路径）：
+
+| 脚本 | 适用数据库 |
+| --- | --- |
+| `db/chaos-mq-outbox-schema-mysql.sql` | MySQL 8.0+ / MariaDB 10.5+ |
+| `db/chaos-mq-outbox-schema-postgresql.sql` | PostgreSQL 12+ |
+| `db/chaos-mq-outbox-schema-h2.sql` | H2（本地/测试） |
+| `db/chaos-mq-outbox-schema.sql` | 与 H2 版相同，保留给旧引用 |
+
+- 多实例抢占：`claimDueMessages` 使用条件 UPDATE 抢占为 `SENDING` 并写入 `claimed_at`/`claim_owner`，`completeClaim` 仅当 `status=SENDING` 且 `claim_owner=本实例` 时回写终态；`deleteSentMessagesBefore` 先按索引查出一批 `message_id` 再逐条删除。
+- 注意：`outbox` 表必须与业务写库处于同一本地事务，且 `claim-timeout` 应明显大于 `chaos.mq.publisher.send-timeout`。
+
+## Kafka 与 RocketMQ 适配
+
+- **Kafka（`com.chaos.mq.kafka.KafkaMessagePublisher`）**：引入 `spring-kafka` 并配置 `spring.kafka.*` 后自动注册。同步等待 `KafkaTemplate#send` future 完成，失败抛 `MessagePublishException` 触发 outbox 重试，自动补齐 W3C Trace 与 `message-id` / `message-tag` 请求头。Kafka Testcontainers 集成测试：`./mvnw -pl chaos-mq -am -Pchaos-integration-test verify`。
+- **RocketMQ（`com.chaos.mq.rocketmq.RocketMqMessagePublisher`）**：引入 `rocketmq-spring-boot-starter` 并配置 `rocketmq.*` 后自动注册。同步调用 `syncSend`，仅 `SendStatus.SEND_OK` 视为成功。

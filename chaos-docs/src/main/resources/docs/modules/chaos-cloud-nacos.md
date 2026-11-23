@@ -1,7 +1,7 @@
 # chaos-cloud-nacos
 
 > 仓库中不存在 `chaos-nacos` 模块。Nacos 注册/配置约定位于 `chaos-autoconfigure`，
-> 通过 `chaos-cloud-nacos-starter` 引入（聚合 Nacos Discovery 与 Nacos Config）；Gateway 动态路由见 [chaos-gateway-nacos](chaos-gateway-nacos.md)。
+> 通过 `chaos-cloud-nacos-starter` 引入（聚合 Nacos Discovery 与 Nacos Config）；Gateway 动态路由（`com.chaos.gateway.nacos`）已内嵌于 [chaos-gateway](chaos-gateway.md)（`nacos-client` 为 optional），配合同一 starter 即可开启。
 
 ## 职责
 

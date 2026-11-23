@@ -1,6 +1,6 @@
 # 能力：可靠消息 outbox（chaos-mq-starter）—— 追加到业务服务配置中
 #
-# 前置：按数据库方言执行 chaos-mq-jdbc 中的 db/chaos-mq-outbox-schema-{mysql,postgresql,h2}.sql 建表。
+# 前置：按数据库方言执行 chaos-mq 中的 db/chaos-mq-outbox-schema-{mysql,postgresql,h2}.sql 建表。
 chaos:
   mq:
     publisher:

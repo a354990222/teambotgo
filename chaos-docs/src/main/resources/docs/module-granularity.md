@@ -35,21 +35,14 @@
 
 ## 强关联 starter 对
 
-以下 starter 对在实际使用中几乎总是一起引入，未来可考虑合并：
+在模块化收敛中，以下强关联组合已经完成合并简化：
+
+- 原 `chaos-audit-starter`、`chaos-audit-jdbc-starter` 已取消独立 starter，JDBC 审计适配器合入 `chaos-audit`，随业务 JDBC 依赖与 `chaos.audit.jdbc.enabled=true` 自动激活；
+- 原 `chaos-gateway-nacos-starter` 与 `chaos-gateway-nacos` 已收敛至 `chaos-cloud-nacos-starter` 与 `chaos-gateway`（`com.chaos.gateway.nacos`）；
+- 原 `chaos-auth-server-starter` 已合并至 `chaos-authorization-starter`；`chaos-process-*-starter`、`chaos-mq-jdbc-starter`、`chaos-job-starter`、`chaos-tenant-starter` 同步按驱动条件装配与场景聚合收敛。
+
+目前仍保持独立的常见组合：
 
 | 组合 | 理由 |
-|------|------|
-| `chaos-audit-starter` + `chaos-audit-jdbc-starter` | 审计不落库无意义，JDBC 是唯一持久化实现 |
-| `chaos-gateway-starter` + `chaos-gateway-nacos-starter` | 当前 Nacos 是唯一动态路由方案 |
-| `chaos-security-starter` + `chaos-redis-starter` | 生产环境 JWT 撤销强依赖 Redis |
-
-## 暂不合并的原因
-
-- 1.0.x 阶段优先保持模块边界清晰，降低单次变更影响范围
-- 合并需要同步更新 BOM、文档、示例工程和架构测试
-- 等待真实业务方反馈后再决定是否合并
-
-## 评估时机
-
-- 首个外部业务方接入后收集反馈
-- 如果超过 80% 的接入方同时引入上述组合，则合并
+| --- | --- |
+| `chaos-security-starter` + `chaos-redis-starter` | 资源服务器也支持单机测试；生产环境通过 `chaos.production-safety` 强制要求配置 Redis |

@@ -35,7 +35,7 @@ CI 中由 `.github/workflows/ci.yml` 的 `integration-test` job 执行，GitHub 
 | `chaos-security-redis` | `RedisJwtRevocationServiceIT` | `redis:7.4-alpine` | 跨实例共享 JWT 黑名单撤销与 TTL 过期 |
 | `chaos-security-redis` | `RedisAuthorizationPolicySourceIT` | `redis:7.4-alpine` | Redis 动态 ABAC 授权策略加载与更新 |
 | `chaos-mybatis` | `MybatisTenantInfrastructureIT` | `mysql:8.4` | MyBatis-Plus 多租户拦截器真实 SQL 改写 |
-| `chaos-mq-kafka` | `KafkaMessagePublisherIT` | Kafka（Testcontainers） | Kafka 消息发送确认、`message-id` 与 W3C `traceparent` 头 |
+| `chaos-mq` | `KafkaMessagePublisherIT` | Kafka（Testcontainers） | Kafka 消息发送确认、`message-id` 与 W3C `traceparent` 头 |
 
 ## RocketMQ 策略
 

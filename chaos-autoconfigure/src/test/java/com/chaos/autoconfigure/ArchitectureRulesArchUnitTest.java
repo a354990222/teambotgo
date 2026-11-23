@@ -62,7 +62,6 @@ class ArchitectureRulesArchUnitTest {
                         "com.chaos.redis..",
                         "com.chaos.excel..",
                         "com.chaos.mq..",
-                        "com.chaos.job..",
                         "com.chaos.storage..",
                         "com.chaos.autoconfigure..",
                         "org.springframework.web..",

@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * <ol>
  *     <li>chaos-core 不依赖任何 chaos 模块，也不依赖 Spring Web / Servlet / Security；</li>
  *     <li>chaos-security-api 只依赖 chaos-core，不依赖 Spring Security；</li>
- *     <li>chaos-gateway、chaos-gateway-nacos、chaos-mybatis、chaos-redis 只能依赖 chaos-security-api，
+ *     <li>chaos-gateway、chaos-mybatis、chaos-redis 只能依赖 chaos-security-api，
  *     不得依赖 chaos-security / chaos-authorization / chaos-security-redis；</li>
  *     <li>chaos-redis 不含任何安全领域概念；</li>
  *     <li>chaos-autoconfigure 只放装配代码，不放 Filter / Interceptor / Repository / Service 等实现
@@ -45,19 +45,21 @@ class DependencyDirectionArchitectureTest {
             "chaos-security", "chaos-authorization", "chaos-security-redis");
 
     private static final List<String> SECURITY_API_ONLY_MODULES = List.of(
-            "chaos-gateway", "chaos-gateway-nacos", "chaos-mybatis", "chaos-redis");
+            "chaos-gateway", "chaos-mybatis", "chaos-redis");
 
     /**
-     * 场景 starter：使用方按“要搭什么服务”只选一个。网关 starter 历史上同时承担能力聚合，不在此列。
+     * 场景 starter：使用方按“要搭什么服务”只选一个。网关与授权 starter 同时承担能力聚合，不在此列。
      */
-    static final Set<String> SCENARIO_STARTERS = Set.of("chaos-web-service-starter", "chaos-auth-server-starter");
+    static final Set<String> SCENARIO_STARTERS = Set.of("chaos-web-service-starter");
 
     /**
-     * 场景 starter 允许直接声明的非 chaos 依赖：仅限服务运维必需的可观测性端点。
+     * 场景 starter 允许直接声明的依赖：服务运维必需的可观测性端点，以及无独立 starter 的横切模块。
      */
     private static final Set<String> SCENARIO_STARTER_ALLOWED_LIBRARIES = Set.of(
             "org.springframework.boot:spring-boot-starter-actuator",
-            "io.micrometer:micrometer-registry-prometheus");
+            "io.micrometer:micrometer-registry-prometheus",
+            "com.chaos:chaos-tenant",
+            "com.chaos:chaos-audit");
 
     private static final List<String> WEB_FRAMEWORK_IMPORTS = List.of(
             "org.springframework.web.", "org.springframework.http.", "org.springframework.security.", "jakarta.servlet.");
@@ -78,12 +80,9 @@ class DependencyDirectionArchitectureTest {
     private static final Map<String, String> BASE_PACKAGES = Map.ofEntries(
             Map.entry("chaos-core", "com.chaos.core"),
             Map.entry("chaos-process", "com.chaos.process"),
-            Map.entry("chaos-process-jdbc", "com.chaos.process.jdbc"),
-            Map.entry("chaos-process-redis", "com.chaos.process.redis"),
             Map.entry("chaos-domain", "com.chaos.domain"),
             Map.entry("chaos-trace", "com.chaos.trace"),
             Map.entry("chaos-audit", "com.chaos.audit"),
-            Map.entry("chaos-audit-jdbc", "com.chaos.audit.jdbc"),
             Map.entry("chaos-tenant", "com.chaos.tenant"),
             Map.entry("chaos-security-api", "com.chaos.security.api"),
             Map.entry("chaos-security", "com.chaos.security"),
@@ -97,15 +96,8 @@ class DependencyDirectionArchitectureTest {
             Map.entry("chaos-redis", "com.chaos.redis"),
             Map.entry("chaos-excel", "com.chaos.excel"),
             Map.entry("chaos-mq", "com.chaos.mq"),
-            Map.entry("chaos-mq-jdbc", "com.chaos.mq.jdbc"),
-            Map.entry("chaos-mq-kafka", "com.chaos.mq.kafka"),
-            Map.entry("chaos-mq-rocketmq", "com.chaos.mq.rocketmq"),
             Map.entry("chaos-gateway", "com.chaos.gateway"),
-            Map.entry("chaos-gateway-nacos", "com.chaos.gateway.nacos"),
-            Map.entry("chaos-job", "com.chaos.job"),
             Map.entry("chaos-storage", "com.chaos.storage"),
-            Map.entry("chaos-storage-minio", "com.chaos.storage.minio"),
-            Map.entry("chaos-storage-oss", "com.chaos.storage.oss"),
             Map.entry("chaos-autoconfigure", "com.chaos.autoconfigure"),
             Map.entry("chaos-test-support", "com.chaos.test"),
             Map.entry("example-auth-server", "com.chaos.examples.auth"),

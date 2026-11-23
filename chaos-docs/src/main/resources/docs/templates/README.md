@@ -7,7 +7,7 @@
 | --- | --- | --- | --- |
 | Servlet 业务服务 | `chaos-web-service-starter` | [web-service/application.yml](web-service/application.yml) | [web-service/application-prod.yml](web-service/application-prod.yml) |
 | API 网关 | `chaos-gateway-starter` | [gateway/application.yml](gateway/application.yml) | [gateway/application-prod.yml](gateway/application-prod.yml) |
-| OAuth2 授权服务器 | `chaos-auth-server-starter` | [auth-server/application.yml](auth-server/application.yml) | [auth-server/application-prod.yml](auth-server/application-prod.yml) |
+| OAuth2 授权服务器 | `chaos-authorization-starter` | [auth-server/application.yml](auth-server/application.yml) | [auth-server/application-prod.yml](auth-server/application-prod.yml) |
 
 | 追加能力 | 引入的 starter | 模板 |
 | --- | --- | --- |

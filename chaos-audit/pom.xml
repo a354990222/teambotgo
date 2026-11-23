@@ -9,13 +9,45 @@
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>chaos-audit-parent</artifactId>
-    <packaging>pom</packaging>
-    <name>chaos-audit-parent</name>
-    <description>Audit event model and persistence capability domain aggregator.</description>
-    <!-- 审计属于安全合规能力，2.0 起从 chaos-observability 中独立出来；坐标保持不变。 -->
-    <modules>
-        <module>chaos-audit</module>
-        <module>chaos-audit-jdbc</module>
-    </modules>
+    <artifactId>chaos-audit</artifactId>
+    <name>chaos-audit</name>
+    <description>Audit event model, structured log publisher, and optional JDBC persistence adapter.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>com.chaos</groupId>
+            <artifactId>chaos-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chaos</groupId>
+            <artifactId>chaos-trace</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

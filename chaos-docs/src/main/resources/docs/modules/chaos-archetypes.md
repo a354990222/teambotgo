@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `chaos-archetype-web-service` | `chaos-web-service-starter` + DDD 分层示例（interfaces / application / domain / infrastructure），内存仓储无需数据库 | 未登录 401；有权限创建与查询；无权限 403 |
 | `chaos-archetype-gateway` | `chaos-gateway-starter` + `/api/**` 路由示例 | 健康检查公开；未携带 token 访问路由 401 |
-| `chaos-archetype-auth-server` | `chaos-auth-server-starter` + 仅限开发环境的演示账号 | JWK Set 与授权服务器元数据可访问 |
+| `chaos-archetype-auth-server` | `chaos-authorization-starter` + 仅限开发环境的演示账号 | JWK Set 与授权服务器元数据可访问 |
 
 所有生成项目：
 

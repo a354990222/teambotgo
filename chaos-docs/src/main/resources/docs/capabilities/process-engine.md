@@ -25,8 +25,8 @@ Chaos 流程能力
   ├─ ProcessEngine：启动、领取、完成任务端口
   ├─ chaos-process：状态机、流程契约和 support.InMemoryProcessEngine
   ├─ chaos-process-starter：Spring Boot 依赖入口和内存实现条件装配
-  ├─ chaos-process-jdbc / chaos-process-jdbc-starter：JDBC 持久化实现
-  └─ chaos-process-redis / chaos-process-redis-starter：Redis 持久化实现
+  ├─ com.chaos.process.jdbc：JDBC 持久化实现
+  └─ com.chaos.process.redis：Redis 持久化实现
 ```
 
 `StateMachineEngine` 是无状态对象，不保存当前状态，也不使用内存锁替代数据库并发控制。应用服务应在同一事务内执行：加载单据、调用状态机 Guard、按期望状态或版本更新单据、写状态历史。
@@ -50,7 +50,7 @@ chaos:
     engine: jdbc # memory、jdbc、redis、none
 ```
 
-对应坐标为 `com.chaos:chaos-process-jdbc-starter` 和 `com.chaos:chaos-process-redis-starter`。JDBC 适配器不会自动建表，请使用应用的 Flyway/Liquibase 或迁移工具执行 `db/chaos-process-schema-h2.sql`（并按目标数据库方言调整）；Redis 适配器要求配置持久化、复制和 Lua 脚本支持。`engine=none` 表示由应用自行提供 `ProcessEngine` Bean。
+只需引入 `com.chaos:chaos-process-starter` 配合应用已有的 `spring-boot-starter-jdbc` 或 `spring-boot-starter-data-redis` 即可按 `chaos.process.engine` 切换。JDBC 适配器不会自动建表，请使用应用的 Flyway/Liquibase 或迁移工具执行 `db/chaos-process-schema-h2.sql`（并按目标数据库方言调整）；Redis 适配器要求配置持久化、复制和 Lua 脚本支持。`engine=none` 表示由应用自行提供 `ProcessEngine` Bean。
 
 开发和测试环境默认创建 `InMemoryProcessEngine`：
 

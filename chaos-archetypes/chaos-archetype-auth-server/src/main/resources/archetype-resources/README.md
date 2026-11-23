@@ -1,6 +1,6 @@
 # Chaos Auth Server
 
-基于 Chaos Framework `chaos-auth-server-starter` 生成的 OAuth2 授权服务器。
+基于 Chaos Framework `chaos-authorization-starter` 生成的 OAuth2 授权服务器。
 
 ## 本地运行
 

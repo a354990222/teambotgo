@@ -11,7 +11,7 @@
     </parent>
     <artifactId>chaos-service</artifactId>
     <name>chaos-service</name>
-    <description>Service-layer aggregation of mybatis, redis, mq, monitor, trace, log and feign contracts.</description>
+    <description>Service-layer orchestration of transactions, retry, async propagation, domain events, and distributed scheduled jobs.</description>
     <properties>
         <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
         <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
@@ -54,7 +54,7 @@
         <dependency>
             <groupId>com.chaos</groupId>
             <artifactId>chaos-trace</artifactId>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -160,29 +160,20 @@ BOM 不包含：`chaos-architecture-tests`（仓库内部架构测试，不发�
 
 | Starter | 聚合依赖 | 使用场景 |
 | --- | --- | --- |
-| `chaos-web-service-starter` | 场景 starter：`chaos-web-starter`、`chaos-security-starter`、`chaos-tenant-starter`、`chaos-audit-starter`、`chaos-application-starter` | Servlet 业务服务（推荐入口） |
-| `chaos-auth-server-starter` | 场景 starter：`chaos-authorization-starter`、Actuator、Prometheus | OAuth2 授权服务器（推荐入口） |
+| `chaos-web-service-starter` | 场景 starter：`chaos-web-starter`、`chaos-security-starter`、`chaos-tenant`、`chaos-audit`、`chaos-application-starter` | Servlet 业务服务（推荐入口） |
 | `chaos-web-starter` | `chaos-autoconfigure`（web）、Spring MVC、Validation、Actuator、OpenAPI | 普通 Web 服务 |
-| `chaos-security-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（security）、OAuth2 Resource Server、AOP、Validation | 资源服务器和 RBAC |
-| `chaos-authorization-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（authorization）、Web、Security、Authorization Server、Data Redis、Validation | OAuth2 授权服务器 |
-| `chaos-application-starter` | `chaos-autoconfigure`（service）、Cache、AOP、Retry、Prometheus | 应用层能力（事务、重试、领域事件、上下文传播）；1.0.0 前名为 `chaos-service-starter` |
+| `chaos-security-starter` | `chaos-audit`、`chaos-autoconfigure`（security）、OAuth2 Resource Server、AOP、Validation | 资源服务器和 RBAC |
+| `chaos-authorization-starter` | `chaos-audit`、`chaos-autoconfigure`（authorization）、Web、Security、Authorization Server、Data Redis、Actuator、Prometheus、Validation | OAuth2 授权服务器（同时是授权场景 starter） |
+| `chaos-application-starter` | `chaos-autoconfigure`（service）、`chaos-service`（含分布式定时任务）、Cache、AOP、Retry、Prometheus | 应用层能力与非 Web 服务（事务、重试、领域事件、定时任务、上下文传播） |
 | `chaos-cloud-starter` | `chaos-autoconfigure`（cloud）、`chaos-trace`、`chaos-http-client`、OpenFeign、LoadBalancer、Validation | Servlet 服务间 HTTP 与 Feign 调用 |
 | `chaos-cloud-reactive-starter` | `chaos-autoconfigure`（cloud / web-reactive）、`chaos-web-reactive`、`chaos-trace`、WebFlux、LoadBalancer、Actuator、Validation | 响应式 WebFlux 业务服务，不带 OpenFeign（与 Gateway 互斥自动让位） |
-| `chaos-cloud-nacos-starter` | `chaos-autoconfigure`（cloud-nacos）、Nacos Discovery、Nacos Config | Nacos 注册与配置约定 |
-| `chaos-gateway-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（gateway）、Spring Cloud Gateway、Resource Server、oauth2-oidc-sdk、Actuator、Prometheus、Validation | API Gateway（同时是网关场景 starter） |
-| `chaos-gateway-nacos-starter` | `chaos-gateway-starter`、`chaos-autoconfigure`（gateway-nacos）、Nacos Config、Validation | Gateway 动态路由 |
-| `chaos-job-starter` | `chaos-autoconfigure`（job）、Spring Boot Starter | 定时任务服务（不再强制带入 Actuator） |
-| `chaos-process-starter` | `chaos-autoconfigure`（process）、`chaos-process`、Spring Boot Starter | 状态机与流程引擎；内存实现仅用于开发和测试 |
-| `chaos-process-jdbc-starter` | `chaos-autoconfigure`（process）、`chaos-process-jdbc`、Spring JDBC | JDBC 持久化流程引擎 |
-| `chaos-process-redis-starter` | `chaos-autoconfigure`（process）、`chaos-process-redis`、Spring Data Redis | Redis Lua CAS 持久化流程引擎 |
-| `chaos-tenant-starter` | `chaos-autoconfigure`（tenant）、Validation | 租户治理 |
+| `chaos-cloud-nacos-starter` | `chaos-autoconfigure`（cloud-nacos）、Nacos Discovery、Nacos Config | Nacos 注册、配置与网关动态路由 |
+| `chaos-gateway-starter` | `chaos-audit`、`chaos-autoconfigure`（gateway）、Spring Cloud Gateway、Resource Server、oauth2-oidc-sdk、Actuator、Prometheus、Validation | API Gateway（同时是网关场景 starter） |
+| `chaos-process-starter` | `chaos-autoconfigure`（process）、`chaos-process`（含可选 JDBC/Redis 引擎）、Spring Boot Starter | 状态机与流程引擎；内存实现仅用于开发和测试 |
 | `chaos-redis-starter` | `chaos-autoconfigure`（redis）、`chaos-redis`、Redisson | Redis 基础设施与可选两级缓存能力 |
 | `chaos-mybatis-starter` | `chaos-autoconfigure`（mybatis）、`chaos-mybatis`、MyBatis Plus、JSQLParser、Validation | 数据访问服务 |
-| `chaos-mq-starter` | `chaos-autoconfigure`（mq）、`chaos-mq`、`chaos-mq-kafka`、`chaos-mq-rocketmq` | 消息服务（含可靠消息抽象与 Broker 适配） |
-| `chaos-mq-jdbc-starter` | `chaos-mq-starter`、`chaos-autoconfigure`（mq-outbox）、`chaos-mq-jdbc`、Spring JDBC | JDBC outbox 持久化与定时派发 |
-| `chaos-storage-starter` | `chaos-autoconfigure`（storage）、OSS、MinIO、Validation | 对象存储 |
-| `chaos-audit-starter` | `chaos-autoconfigure`（audit） | 默认结构化日志审计 |
-| `chaos-audit-jdbc-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（audit-jdbc）、JDBC、Validation | JDBC 审计持久化 |
+| `chaos-mq-starter` | `chaos-autoconfigure`（mq / mq-outbox）、`chaos-mq`（含可选 JDBC/Kafka/RocketMQ 适配器） | 消息服务（含可靠消息、JDBC Outbox 与 Broker 适配） |
+| `chaos-storage-starter` | `chaos-autoconfigure`（storage）、`chaos-storage`（含可选 OSS/MinIO 适配器）、Validation | 对象存储 |
 
 典型 Web 业务服务的组合（场景 starter + 能力 starter，选型说明见 [chaos-starters](modules/chaos-starters.md)）：
 

@@ -19,7 +19,7 @@
         <!-- 场景 starter：授权服务器（authorization + Redis 存储 + 审计 + Actuator/Prometheus）。 -->
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-auth-server-starter</artifactId>
+            <artifactId>chaos-authorization-starter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
