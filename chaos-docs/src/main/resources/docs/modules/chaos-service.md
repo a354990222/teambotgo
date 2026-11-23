@@ -49,11 +49,21 @@ TaskDecorator taskDecorator() {
 - `CompletableFuture` 默认线程池、Reactor 等不经过 `TaskDecorator` 的异步边界，可开启
   `chaos.service.context-propagation.micrometer-enabled=true`，把 chaos 上下文注册到 Micrometer `ContextRegistry`
   （需要 `io.micrometer:context-propagation`）。默认关闭，因为恢复快照时会整体恢复 MDC，与 Micrometer Tracing 同时使用时需先验证日志字段。
+- Java 21 虚拟线程（`spring.threads.virtual.enabled=true`）下，Spring Boot 自动装配的 `SimpleAsyncTaskExecutor` 同样会接入 `chaosTraceContextTaskDecorator`；
+  由 `VirtualThreadContextPropagationTest` 与 `ChaosServiceAutoConfigurationTest` 覆盖验证多虚拟线程并发隔离与退出清理。
+  注意不要在持久化长连接或高并发热路径使用不设池化上限的 `ThreadLocal` 缓存大对象，避免随虚拟线程数量放大内存占用。
 
 ### 重试
 
 默认 `RetryExecutor` **不重试** `BizException`（含 `IdempotentRejectedException`），并沿异常 cause 链判断；
 业务规则拒绝重试不会成功，只会放大下游压力。
+
+### 事务与提交后副作用
+
+`TransactionExecutor`（`SpringTransactionExecutor`）提供显式编程式事务边界；需要确保只在事务真正提交后才触发外部副作用（例如通知、缓存失效、非 outbox 异步投递）时，使用 `TransactionalSideEffects` / `TransactionMarks`：
+
+- 当前处于活跃事务时自动注册 `TransactionSynchronization`，仅在 `afterCommit` 回调执行副作用；
+- 当前不存在事务时立即执行，避免业务单元测试或非事务入口漏执行副作用。
 
 ### 领域事件
 

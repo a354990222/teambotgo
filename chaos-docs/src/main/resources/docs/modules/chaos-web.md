@@ -135,7 +135,7 @@ chaos:
     沿用自身状态码，4xx 只记 debug 日志；
   - `AccessDeniedException` / `AuthenticationException` 原样抛出，交给 Spring Security 返回 401/403；
   - 5xx 的 `ChaosException` 记录 error 日志和堆栈，响应只返回错误码默认消息，不回显内部信息；
-  - 405、415 使用与状态码一致的 `METHOD_NOT_ALLOWED`、`UNSUPPORTED_MEDIA_TYPE` 错误码；
+  - 405、415 分别使用 `COMMON_METHOD_NOT_ALLOWED`、`COMMON_UNSUPPORTED_MEDIA_TYPE` 响应码；
   - 所有对外文案统一经 `ErrorMessageResolver` 解析，详见下文"错误文案国际化"。
 - `JacksonCustomizer` 使用 `modulesToInstall` 追加 `JavaTimeModule`，不会覆盖 Boot 注册的模块、`@JsonComponent` 和自定义 Module Bean。
 
@@ -260,7 +260,7 @@ curl -H 'traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01' \
 | 身份请求头默认不信任 | 依赖网关透传 `X-User-Id`/`X-Tenant-Id` 且未引入认证的服务拿不到身份 | 引入 chaos-security，或配置 `forwarding.trusted-proxies` + `trust-identity-headers=true` |
 | `@Idempotent` 缺少 key 返回 400 | 未传 `Idempotency-Key` 的客户端 | 客户端补充请求头，或设置 `requireKey = false` |
 | XSS 过滤默认关闭 | 依赖输入端转义的旧页面 | 显式配置 `chaos.web.xss-enabled=true`，并尽快改为输出端编码 |
-| 405/415 错误码变化 | 按错误码 `400` 判断的调用方 | 改为按 `405`/`415` 判断 |
+| 通用失败码改为 COMMON_* | 按数字响应码判断的调用方 | 按语义码判断业务原因，按 HTTP 状态判断请求类别 |
 
 
 ## 长整型 JSON 精度

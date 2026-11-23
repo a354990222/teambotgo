@@ -1,5 +1,7 @@
 package com.chaos.security.token;
 
+import com.chaos.core.exception.CommonErrorCode;
+
 import com.chaos.security.api.token.JwtRevocationService;
 import com.chaos.security.api.token.JwtTokenIds;
 import com.chaos.security.config.ChaosSecurityProperties;
@@ -65,24 +67,24 @@ public class JwtRevocationFilter extends OncePerRequestFilter {
                     return;
                 }
                 LOGGER.error("JWT revocation check failed, rejecting request (fail-closed)", ex);
-                writeError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "503", "service unavailable");
+                writeError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, CommonErrorCode.SERVICE_UNAVAILABLE);
                 return;
             }
             if (revoked) {
                 response.setHeader("WWW-Authenticate", "Bearer error=\"invalid_token\", error_description=\"token revoked\"");
-                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "401", "unauthorized");
+                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, CommonErrorCode.UNAUTHORIZED);
                 return;
             }
         }
         filterChain.doFilter(request, response);
     }
 
-    private void writeError(HttpServletResponse response, int status, String code, String message) throws IOException {
+    private void writeError(HttpServletResponse response, int status, CommonErrorCode errorCode) throws IOException {
         SecurityContextHolder.clearContext();
         response.setStatus(status);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType("application/json");
         response.getWriter().write("{\"code\":\"%s\",\"message\":\"%s\",\"data\":null,\"timestamp\":%d}"
-                .formatted(code, message, Instant.now().toEpochMilli()));
+                .formatted(errorCode.code(), errorCode.message(), Instant.now().toEpochMilli()));
     }
 }

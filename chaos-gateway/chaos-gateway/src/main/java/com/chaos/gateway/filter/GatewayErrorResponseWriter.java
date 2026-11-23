@@ -2,8 +2,8 @@ package com.chaos.gateway.filter;
 
 import com.chaos.core.exception.CommonErrorCode;
 import com.chaos.core.exception.ErrorCode;
+import com.chaos.core.result.ApiResultJson;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
@@ -91,21 +91,11 @@ final class GatewayErrorResponseWriter {
         }
         exchange.getResponse().setStatusCode(status);
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        byte[] bytes = json(errorCode, localize(errorCode, exchange), GatewayExchangeAttributes.traceId(exchange))
+        byte[] bytes = ApiResultJson.failure(
+                        errorCode, localize(errorCode, exchange), GatewayExchangeAttributes.traceId(exchange))
                 .getBytes(StandardCharsets.UTF_8);
         DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(bytes);
         return exchange.getResponse().writeWith(Mono.just(buffer));
-    }
-
-    private static String json(ErrorCode errorCode, String message, String traceId) {
-        return """
-                {"code":"%s","message":"%s","data":null,"traceId":"%s","timestamp":%d}"""
-                .formatted(
-                        escape(errorCode.code()),
-                        escape(message),
-                        escape(traceId),
-                        Instant.now().toEpochMilli()
-                );
     }
 
     /**
@@ -141,30 +131,5 @@ final class GatewayErrorResponseWriter {
         } catch (RuntimeException ex) {
             return Locale.ROOT;
         }
-    }
-
-    private static String escape(String value) {
-        if (value == null) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder(value.length());
-        for (int i = 0; i < value.length(); i++) {
-            char ch = value.charAt(i);
-            switch (ch) {
-                case '\\' -> sb.append("\\\\");
-                case '"' -> sb.append("\\\"");
-                case '\n' -> sb.append("\\n");
-                case '\r' -> sb.append("\\r");
-                case '\t' -> sb.append("\\t");
-                default -> {
-                    if (ch < 0x20) {
-                        sb.append("\\u").append(String.format("%04x", (int) ch));
-                    } else {
-                        sb.append(ch);
-                    }
-                }
-            }
-        }
-        return sb.toString();
     }
 }

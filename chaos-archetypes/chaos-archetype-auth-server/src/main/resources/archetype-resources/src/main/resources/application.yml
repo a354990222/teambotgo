@@ -13,6 +13,7 @@ chaos:
   authorization:
     issuer: http://localhost:9000
     client:
-      id: chaos-client
-      # {noop} 明文密钥仅限本地；生产 profile 下会被生产安全检查阻断。
-      secret: "{noop}chaos-secret"
+      registrations:
+        chaos-client:
+          # {noop} 明文密钥仅限本地；生产 profile 下会被生产安全检查阻断。
+          secret: "{noop}chaos-secret"

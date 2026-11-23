@@ -1,8 +1,7 @@
 package ${package}.domain.todo;
 
-import com.chaos.core.exception.BizException;
-import com.chaos.core.exception.CommonErrorCode;
 import com.chaos.domain.model.AggregateRoot;
+import com.chaos.domain.model.DomainException;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -38,7 +37,7 @@ public class Todo extends AggregateRoot<String> {
      */
     public static Todo create(String tenantId, String title) {
         if (title == null || title.isBlank()) {
-            throw new BizException(CommonErrorCode.BAD_REQUEST, "待办标题不能为空");
+            throw new DomainException("待办标题不能为空");
         }
         Todo todo = new Todo(UUID.randomUUID().toString(), Objects.requireNonNull(tenantId), title.trim(), false);
         todo.registerEvent(new TodoCreatedEvent(UUID.randomUUID().toString(), todo.id, tenantId, Instant.now()));
@@ -50,7 +49,7 @@ public class Todo extends AggregateRoot<String> {
      */
     public void complete() {
         if (completed) {
-            throw new BizException(CommonErrorCode.BAD_REQUEST, "待办已完成");
+            throw new DomainException("待办已完成");
         }
         completed = true;
     }

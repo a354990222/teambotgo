@@ -1,8 +1,9 @@
 package com.chaos.web.result;
 
-import com.chaos.domain.dto.PageResult;
 import com.chaos.core.exception.CommonErrorCode;
 import com.chaos.core.exception.ErrorCode;
+import com.chaos.core.result.ApiResult;
+import com.chaos.domain.dto.PageResult;
 import com.chaos.trace.TraceContext;
 import java.time.Instant;
 import java.util.List;
@@ -23,7 +24,7 @@ public record Result<T>(
         T data,
         String traceId,
         long timestamp
-) {
+) implements ApiResult<T> {
 
     /**
      * 创建成功响应并携带数据。

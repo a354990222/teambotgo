@@ -35,10 +35,6 @@
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
-            <artifactId>chaos-mq-jdbc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.chaos</groupId>
             <artifactId>chaos-mq-rocketmq</artifactId>
         </dependency>
     </dependencies>

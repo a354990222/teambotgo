@@ -25,6 +25,11 @@ public final class ChaosFeatureCatalog {
                     "trusted-proxies", count(context, "chaos.web.forwarding.trusted-proxies"),
                     "trust-identity-headers", value(context, "chaos.web.forwarding.trust-identity-headers", "false"),
                     "xss-enabled", value(context, "chaos.web.xss-enabled", "false"))),
+            entry("web-reactive", "web.reactive.ChaosWebReactiveAutoConfiguration", context -> settings(
+                    "rate-limiter", beanTypes(context, "com.chaos.web.reactive.ratelimit.ReactiveRateLimiter"),
+                    "idempotent-repository", beanTypes(context, "com.chaos.web.reactive.idempotent.ReactiveIdempotentRepository"),
+                    "response-wrap", value(context, "chaos.web.reactive.response-wrap-enabled", "true"),
+                    "xss-enabled", value(context, "chaos.web.reactive.xss-enabled", "true"))),
             entry("excel", "excel.ChaosExcelAutoConfiguration", context -> Map.of()),
             entry("application", "service.ChaosServiceAutoConfiguration", context -> Map.of()),
             entry("tenant", "tenant.ChaosTenantAutoConfiguration", context -> settings(
@@ -73,7 +78,10 @@ public final class ChaosFeatureCatalog {
                     "tenant.column", value(context, "chaos.mybatis.tenant.column", "tenant_id"),
                     "pagination.max-limit", value(context, "chaos.mybatis.pagination.max-limit", "500"))),
             entry("redis", "redis.ChaosRedisAutoConfiguration", context -> settings(
-                    "key-prefix", value(context, "chaos.redis.key-prefix", "（未配置）"))),
+                    "key-prefix", value(context, "chaos.redis.key-prefix", "（未配置）"),
+                    "two-level-cache", value(context, "chaos.redis.two-level-cache.enabled", "false"))),
+            entry("redis-cache", "redis.ChaosRedisCacheAsideAutoConfiguration", context -> settings(
+                    "cache-manager", beanTypes(context, "org.springframework.cache.CacheManager"))),
             entry("mq", "mq.ChaosMqAutoConfiguration", context -> settings(
                     "publisher", beanTypes(context, "com.chaos.mq.MessagePublisher"))),
             entry("mq-outbox", "mq.ChaosMqOutboxAutoConfiguration", context -> settings(

@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 订单服务示例应用入口。
  */
-@MapperScan("com.chaos.examples.order.infra.persistence")
+@MapperScan("com.chaos.examples.order.infrastructure.persistence.mapper")
 @SpringBootApplication
 public class ExampleOrderServiceApplication {
 

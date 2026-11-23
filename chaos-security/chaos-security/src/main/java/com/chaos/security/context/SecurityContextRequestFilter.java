@@ -1,5 +1,6 @@
 package com.chaos.security.context;
 
+import com.chaos.core.context.ContextMdcKeys;
 import com.chaos.core.context.RequestContext;
 import com.chaos.core.context.RequestContextAttributes;
 import com.chaos.core.context.RequestContextSnapshot;
@@ -41,8 +42,8 @@ public class SecurityContextRequestFilter extends OncePerRequestFilter {
                 RequestContext.setTenantId(user.tenantId());
                 request.setAttribute(RequestContextAttributes.USER_ID, user.userId());
                 request.setAttribute(RequestContextAttributes.TENANT_ID, user.tenantId());
-                putIfNotBlank("userId", user.userId());
-                putIfNotBlank("tenantId", user.tenantId());
+                putIfNotBlank(ContextMdcKeys.USER_ID, user.userId());
+                putIfNotBlank(ContextMdcKeys.TENANT_ID, user.tenantId());
             });
             filterChain.doFilter(request, response);
         } finally {

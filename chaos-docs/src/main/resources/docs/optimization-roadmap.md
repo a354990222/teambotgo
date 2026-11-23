@@ -4,10 +4,9 @@
 
 持续把 `chaos-framework` 从通用脚手架演进为企业级微服务治理平台。所有优化必须保持模块边界清晰、starter 只做依赖聚合、autoconfigure 独立、业务代码不侵入 framework。
 
-> **这份文档只记录"要做什么"和"做到什么程度算完成"。**
+> **这份文档只记录“要做什么”和“做到什么程度算完成”。**
 > 每一项具体改了哪些类、哪些配置，看仓库根目录的 `CHANGELOG.md`；
 > 能力的用法与边界，看对应的[能力文档](index.md#cross-module-capabilities)或模块文档。
-> 此前这里还为每个已完成项复制了一份详细叙述，与 CHANGELOG 完全重叠，两边措辞已经开始漂移，故移除。
 
 ## 执行原则
 
@@ -19,29 +18,28 @@
 
 ## 未决事项
 
-以下是已知但尚未排期的项，按影响面排序。
+以下是已知但尚未排期或依赖外部运行时条件的项，按影响面排序。
 
 ### 工程门禁
 
 | 事项 | 现状 | 备注 |
 | --- | --- | --- |
 | CI 首次运行 | 仓库已推送到 GitHub，但 Actions 尚未在其上跑过一次 | CI、CodeQL、Dependabot、dependency-review 的实际行为有待首次运行验证 |
-| 覆盖率门槛 | `chaos.coverage.minimum` 为 `0.00` | 建议改为按模块设差异化门槛，优先把 chaos-security-redis、chaos-authorization 卡到 70% 指令 / 55% 分支 |
-| javadoc doclint | 仍为 `none` | 需要先清理注释中的非法 HTML |
+| 覆盖率门槛 | 全部 36 个 Java 代码模块（含全部核心库、响应式 Web 模块、自动装配、测试支持及 4 个示例模块）已在 `-Pchaos-coverage` 下启用 `70% 指令 / 55% 分支` 硬门槛（`pom.xml` 全局报告下限默认 `0.00`） | 仅纯 POM 聚合模块、纯依赖 starter、`chaos-docs`、原型模板与测试治理模块除外 |
+| javadoc doclint | 已全量清理并通过 `doclint=all,-missing` | 根 POM 通过 `${chaos.javadoc.doclint}` 默认启用 `all,-missing` |
 | API 兼容检查暂时关闭 | `chaos.api.check.skip=true` | 1.0.0 是首发版本没有可比基线。发布 1.0.1 时必须改回 `false` 并把 `compareVersion` 设为上一个已发布版本 —— 忘了改的话 `chaos-release` profile 的 enforcer 会在 `validate` 阶段直接拦住（见 [release-governance.md](release-governance.md) 防止门禁空转），不再依赖人记得 |
-| 架构测试断言强度 | `LayerBoundaryArchitectureTest` 仍有约 130 处 `Files.readString(...).contains(...)` | 最空洞的三个网关断言已替换为真实请求测试；彻底方案是引入 ArchUnit 做字节码级依赖检查 |
+| 架构测试断言强度 | 已消除 `LayerBoundaryArchitectureTest` 中全部 `.java`/`pom.xml`/`.yml` 的文本子串断言，并在 `chaos-autoconfigure` 引入 ArchUnit `1.4.1` 执行字节码级校验 | `LayerBoundaryArchitectureTest` 当前使用 POM XML DOM、SnakeYAML 与 `ProjectModel.codeWithoutComments(...)`，`ArchitectureRulesArchUnitTest` 负责字节码规则 |
 
-### 能力缺口
+### 能力与运行时验证状态
 
 | 事项 | 现状 | 备注 |
 | --- | --- | --- |
-| 缓存 | 全仓无 `CacheManager` / `@EnableCaching`，但 `chaos-application-starter` 已引入 `spring-boot-starter-cache` | `CacheKeyStrategy` 未接到 Spring Cache 上，`chaos.redis.key-prefix` 对 `@Cacheable` 不生效。要么补 `chaos-cache`（Caffeine + Redis 两级、防穿透/击穿），要么从 starter 摘掉该依赖 |
-| 熔断隔离 | 无 resilience4j / spring-cloud-circuitbreaker | 网关只有统一 JSON 降级响应，没有真熔断、舱壁、超时预算；Feign 侧同样没有 |
-| 定时任务 | `chaos-job` 只有分布式锁互斥 + `@Scheduled` | 无分片、失败重试、执行记录、手动触发。要么补 XXL-Job / PowerJob 适配，要么在文档中明确"只做互斥" |
-| 响应式业务栈 | `chaos-web` 仅 Servlet | WebFlux 业务服务拿不到统一 `Result`、全局异常、限流、幂等、XSS；`chaos-cloud-reactive-starter` 目前只给了 loadbalancer + actuator + validation |
-| 虚拟线程 | 全仓未提及 `spring.threads.virtual` | Java 21 + Boot 3.5 下的常见生产开关，影响 ThreadLocal 上下文传播、`TaskDecorator` 生效路径与 Redisson 池化，既无文档也无测试 |
-| 限流失败告警 | 网关 `chaos.gateway.rate-limit.fail-open` 默认 `true` | 限流存储故障时会静默放行。已有 `chaos.ratelimit.errors{outcome="fail-open"}` 指标，还需要在部署侧配置对应告警规则 |
-| 集成测试覆盖面 | 4 个 `*IT` 类、487 行 | RocketMQ、MinIO / OSS、Nacos、网关端到端、授权服务器 JDBC 存储均无集成测试；`smoke` job 也只在主干 push 时运行 |
+| 熔断、舱壁与超时预算 | 已基于 `chaos-core` 原生弹性内核（`SlidingWindowCircuitBreaker` + `SemaphoreBulkhead` + `ResilienceExecutor`）接入 Gateway 与 OpenFeign / `ServiceHttpClients` | 离线仓库未缓存外部 `resilience4j` 实现制品；如需替换为 Resilience4j 生态适配器，可在在线仓库补充依赖后接入 |
+| 定时任务 | 文档已明确 `chaos-job` 定位为“只做分布式锁互斥 + Trace/MDC 上下文” | 无分片、失败重试、执行记录、手动触发；需完整调度台时由业务侧接入 XXL-Job / PowerJob 并关闭 `chaos.job.scheduling-enabled` |
+| 响应式业务栈 | 已新增 `chaos-web-reactive` 并在 `chaos-cloud-reactive-starter` 与 `ChaosWebReactiveAutoConfiguration` 装配完成 | 提供 WebFlux 统一 `ApiResult`、全局异常、Reactor Context Trace、非阻塞 Redis/InMemory 限流与幂等、XSS 防护头 |
+| 虚拟线程 | 已验证 `spring.threads.virtual.enabled=true` 下 `TaskExecutionAutoConfiguration` 自动接入 `TraceContextTaskDecorator`，并补充了 `VirtualThreadContextPropagationTest` 与文档说明 | 仍需在开启真实连接池 / Redisson 的全链路压测下观察 `synchronized` pin 线程与池大小表现 |
+| 限流失败告警 | 网关 `chaos.gateway.rate-limit.fail-open` 默认 `true`，已在 [chaos-gateway.md](modules/chaos-gateway.md) 给出 Prometheus 告警规则示例 | 需在部署侧监控体系实际导入 `chaos.ratelimit.errors{outcome="fail-open"}` 与熔断告警规则 |
+| 集成测试覆盖面 | 5 个 `*IT` 类（Redis / MySQL / Kafka） | RocketMQ、MinIO / OSS、Nacos、网关端到端、授权服务器 JDBC 存储仍无 `*IT`；本地与 CI 需开启 Docker 运行 `-Pchaos-integration-test`，`smoke` job 只在主干 push 时运行 |
 
 ## 已交付能力与验收标准
 
@@ -60,20 +58,19 @@
 | P1 | 已完成 | 配置治理增强 | 降低 starter 使用成本 | 所有配置类补齐校验；输出配置元数据；文档列出配置表；危险默认值启动提示 |
 | P2 | 已完成 | OpenTelemetry 兼容层 | 提升可观测生态兼容性 | 支持 W3C Trace Context 和 baggage；Web、Gateway、Feign、MQ 一致透传；保持 SkyWalking agent 接入 |
 | P2 | 已完成 | Testcontainers 集成测试 | 提升真实基础设施验证能力 | Redis、MySQL、Kafka 关键链路有集成测试；RocketMQ 使用独立 profile 策略 |
-| P2 | 已完成 | 示例工程完整链路 | 给引用方可运行落地样板 | 增加 auth-server、gateway、order-service；覆盖登录、鉴权、租户、MyBatis、Redis/reference token、互踢、Prometheus |
+| P2 | 已完成 | 示例工程完整链路 | 给引用方可运行落地样板 | 增加 `auth-server`、`order-api`、`order-service`、`gateway` 与 `docker-compose.yml`；演示 DDD 四层、契约测试与 JWT/Redis 链路 |
 | P2 | 已完成 | 发布治理 | 支撑 framework 产品化发布 | BOM 兼容矩阵、依赖收敛、API 变更检查、changelog、starter 依赖树文档 |
-| P2 | 已完成 | 状态机与流程引擎基础能力 | 提供业务状态转换和流程待办的统一扩展点 | 独立核心模块与 Starter；状态机 Guard/Action；流程版本、候选人、租约、乐观锁和幂等；生产内存实现阻断；指标、诊断、测试和文档闭环 |
-| P0 | 已完成 | 授权服务器生产安全检查 | 提示生产环境中的开发默认值 | prod/production profile 下检查 localhost issuer、noop secret、memory client、临时 JWK；同时识别内存授权仓储、Noop JWT 撤销、空审计和互踢本地索引；默认 fail-fast 阻断启动（`chaos.authorization.production-safety.fail-fast=false` 可降级为告警） |
-| P0 | 已完成 | 异步上下文传播治理 | 避免线程池和异步任务 trace/租户/MDC 丢失或串扰 | 提供 TraceContextSnapshot、Scope、Runnable wrap 和 TaskDecorator 自动装配；补充测试与文档 |
+| P2 | 已完成 | 状态机与流程引擎基础能力 | 提供业务状态转换和流程待办的统一扩展点 | 独立核心模块与 Starter；状态机 Guard/Action；流程版本、候选人、租约、乐观锁和幂等；JDBC/Redis 适配器；生产内存实现阻断 |
+| P0 | 已完成 | 授权服务器生产安全检查 | 提示生产环境中的开发默认值 | prod/production/prd 下检查 localhost issuer、noop secret、memory client、临时 JWK、内存授权仓储、Noop JWT 撤销、空审计和互踢本地索引；默认 fail-fast 阻断启动 |
+| P0 | 已完成 | 异步上下文与虚拟线程传播治理 | 避免线程池、异步任务及虚拟线程 trace/租户/Security/MDC 丢失或串扰 | `ContextPropagation` 接入 `TraceContext`、`TenantContext`、`SecurityContextPropagation`、`DataScopeContext`；`TaskDecorator` 自动适配线程池与虚拟线程 |
 | P0 | 已完成 | CI 与示例链路 Smoke | 提升提交质量和示例可验证性 | GitHub Actions 跑单测、发布治理 validate、结构扫描；提供 JWT 示例链路 smoke 脚本 |
-| P0 | 已完成 | Noop/InMemory 生产安全保护 | 提示危险兜底实现进入生产 | 支持 `chaos.production-safety.production-mode`；生产模式检测 NoopJwtRevocationService、NoopTenantStatusProvider、NoopDataScopeProvider、本地限流和本地幂等实现，默认 fail-fast 阻断启动（`chaos.production-safety.fail-fast=false` 可降级为告警；默认 profiles 增加 `prd`） |
-| P1 | 已完成 | MQ outbox JDBC 适配器 | 让可靠消息从端口走向可落库实现 | 新增 chaos-mq-jdbc、JDBC outbox 仓储、建表脚本、自动装配、测试和文档 |
-| P1 | 已完成 | MQ outbox 多实例 claim | 降低多实例派发重复发送窗口 | OutboxMessageRepository 增加 claimDueMessages；派发器走 claim；JDBC 条件 update 抢占并记录 claimed_at/claim_owner |
-| P1 | 已完成 | 幂等响应回放 | 让客户端超时重发能拿到首次结果 | 重复请求返回首次状态码/响应体/Location 并带 `Idempotency-Replayed`；执行中返回 409；失败释放占位；提供 Redis 与内存两种快照存储；默认关闭 |
-| P1 | 已完成 | 错误文案国际化 | 消除中英混杂，让 `Accept-Language` 生效 | 错误码与框架内置提示统一走 `MessageSource`；提供英文根包与 zh_CN 资源包；业务可用同名 key 覆盖；可固定语言或整体关闭 |
-| P0 | 已完成 | 治理指标与健康检查 | 让框架自己的决策可观测 | 限流/幂等/租户/权限/认证/outbox/审计共 12 个指标；无 Micrometer 时降级为空实现；outbox 积压进 /actuator/health；标签基数受控 |
-| P1 | 已完成 | 审计异步化 | 消除请求线程内的同步审计写入 | 有界队列 + 守护线程；队列满丢弃并计指标不阻塞业务；关闭时排空；默认关闭 |
-| P1 | 已完成 | 架构测试去假保证 | 让约束真的被验证 | 三个"源码含子串"的网关测试替换为 Result 形状比对与真实请求断言 |
-| P1 | 已完成 | 供应链门禁 | 补上依赖 CVE 与物料清单 | CycloneDX SBOM 绑定 release profile；enforcer bannedDependencies；CI 加 dependency-review |
-| P1 | 已完成 | chaos-python 收口 | 让 Python 侧不再是孤儿模块 | 补 ASGI/WSGI HTTP 中间件；版本对齐框架并由 CI 校验；CI 增加 ruff 与 mypy strict |
-| P0 | 已完成 | 工程基建治理（2026-09） | 让依赖、发布和 CI 门禁真正生效 | BOM 单一来源并双向校验；Boot/Cloud 补丁升级；autoconfigure 依赖 optional；配置元数据覆盖库模块；CI 拆分 job 并纳入集成测试、覆盖率、CodeQL、Dependabot；结构扫描不再静默通过；japicmp 与 Central 发布绑定 release profile |
+| P0 | 已完成 | Noop/InMemory 生产安全保护 | 提示危险兜底实现进入生产 | 生产模式检测危险 Noop / InMemory 默认实现并默认 fail-fast 阻断启动 |
+| P1 | 已完成 | MQ outbox JDBC 适配器 | 让可靠消息从端口走向可落库实现 | `chaos-mq-jdbc`、`chaos-mq-jdbc-starter`、批量清理、多实例 claim、建表脚本、健康检查 |
+| P1 | 已完成 | 幂等响应回放与错误文案国际化 | 超时重放与双语提示闭环 | 重复请求回放首次状态码/响应体/Location；`MessageSource` 中英文错误文案与 `Accept-Language` 支持 |
+| P0 | 已完成 | 治理指标、健康检查与审计异步化 | 让框架决策可观测且不阻塞业务线程 | 12 项低基数治理指标、outbox 积压健康检查、异步有界审计队列、`ChaosBuiltInDiagnosticRules`（含 Nacos 隔离校验） |
+| P0 | 已完成 | 跨栈服务调用与模块收口 | 消除 `chaos-transaction`/`chaos-storage-document` 碎片并补齐 Feign 契约 | 合并至 `chaos-service` / `chaos-excel`；新增 `chaos-http-client` 与 `ServiceHttpClient` / `ChaosFeignResultDecoder` / `ChaosFeignErrorDecoder` |
+| P0 | 已完成 | 架构断言去假化、doclint 与全覆盖门槛 | 让架构约束与覆盖率门禁真正不可绕过 | 启用 `doclint=all,-missing`；全部 36 个 Java 代码模块启用 `70%/55%` JaCoCo 门槛；接入 ArchUnit `1.4.1` + POM DOM + 去注释源码扫描 |
+| P0 | 已完成 | 熔断、并发舱壁与超时预算 | 为网关转发与服务间 HTTP/Feign 调用补齐真实故障隔离 | `chaos-core` 新增 `SlidingWindowCircuitBreaker` / `SemaphoreBulkhead` / `ResilienceRegistry` / `ResilienceExecutor`；接入 `GatewayResilienceFilter`、`ChaosResilientFeignClient` 与 `ResilientHttpRequestInterceptor` |
+| P1 | 已完成 | WebFlux 响应式业务栈 | 让非网关响应式业务服务具备统一契约与治理防线 | 新增 `chaos-web-reactive`，在 `ChaosWebReactiveAutoConfiguration` 与 `chaos-cloud-reactive-starter` 提供统一 `ApiResult`、全局异常、Trace、Redis/内存限流与幂等及安全头 |
+| P1 | 已完成 | 本地 + Redis 两级缓存 | 补齐热点缓存防穿透、防击穿、跨实例广播失效与 `@Cacheable` 两级支撑 | `chaos-redis` 新增 `TwoLevelCacheManager` / `TwoLevelCache`（Caffeine L1 + Redis L2）、`CacheAsideTemplate` 与 `RedisTwoLevelCacheInvalidationBridge`（Redis Pub/Sub 跨实例 L1 主动失效） |
+| P1 | 已完成 | 供应链门禁与 chaos-python 收口 | 补上依赖 CVE、SBOM 与 Python 中间件 | CycloneDX SBOM、enforcer、CI dependency-review；`chaos-python/chaos-tracing` ASGI/WSGI 中间件与 ruff/mypy strict |

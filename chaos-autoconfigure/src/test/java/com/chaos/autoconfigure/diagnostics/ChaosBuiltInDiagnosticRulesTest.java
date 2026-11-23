@@ -203,6 +203,26 @@ class ChaosBuiltInDiagnosticRulesTest {
         assertThat(ChaosBuiltInDiagnosticRules.missingAuthorizationPolicySource(context(false))).isEmpty();
     }
 
+    /**
+     * 启用 Nacos 但未配置 namespace 时提示；生产模式仍使用 DEFAULT_GROUP 时告警。
+     */
+    @Test
+    void nacosIsolationRule() {
+        assertThat(ChaosBuiltInDiagnosticRules.nacosIsolation(context(true))).isEmpty();
+
+        assertThat(ChaosBuiltInDiagnosticRules.nacosIsolation(context(false, "cloud-nacos")))
+                .singleElement().extracting(Finding::severity).isEqualTo(Severity.INFO);
+
+        assertThat(ChaosBuiltInDiagnosticRules.nacosIsolation(context(true, "cloud-nacos")))
+                .hasSize(2)
+                .extracting(Finding::severity)
+                .containsOnly(Severity.WARN);
+
+        environment.setProperty("spring.cloud.nacos.discovery.namespace", "prod-order");
+        environment.setProperty("chaos.nacos.group", "ORDER_GROUP");
+        assertThat(ChaosBuiltInDiagnosticRules.nacosIsolation(context(true, "cloud-nacos"))).isEmpty();
+    }
+
     private ChaosDiagnosticContext context(boolean productionMode, String... enabledFeatures) {
         return new ChaosDiagnosticContext(environment, beanFactory, productionMode, Set.of(enabledFeatures));
     }

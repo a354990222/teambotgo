@@ -1,10 +1,10 @@
 package com.chaos.examples.order;
 
-import com.chaos.examples.order.infra.messaging.LoggingMessagePublisher;
+import com.chaos.examples.order.infrastructure.messaging.LoggingMessagePublisher;
 import com.chaos.mq.MessagePublisher;
 import com.chaos.mybatis.datascope.DataScopeCondition;
 import com.chaos.mybatis.datascope.DataScopeProvider;
-import com.chaos.security.auth.SecurityUtils;
+import com.chaos.security.api.auth.LoginUserProvider;
 import com.chaos.tenant.TenantDescriptor;
 import com.chaos.tenant.TenantIsolationMode;
 import com.chaos.tenant.TenantPlan;
@@ -56,12 +56,12 @@ public class ExampleOrderConfiguration {
      * <p>admin 角色可查看当前租户全部订单，普通用户只能查看自己作为买家的订单。</p>
      */
     @Bean
-    public DataScopeProvider dataScopeProvider() {
+    public DataScopeProvider dataScopeProvider(LoginUserProvider loginUserProvider) {
         return scope -> {
             if (!"order".equals(scope)) {
                 return Optional.empty();
             }
-            return SecurityUtils.currentUser()
+            return loginUserProvider.currentUser()
                     .map(user -> user.roles().contains("admin")
                             ? DataScopeCondition.eq("tenant_id", user.tenantId())
                             : DataScopeCondition.eq("buyer_id", user.userId()));

@@ -19,11 +19,13 @@ import com.chaos.core.idempotent.IdempotentRecordCodec;
 import com.chaos.core.lock.LockHandle;
 import com.chaos.core.ratelimit.RateLimitContext;
 import com.chaos.redis.bloom.BloomFilterTemplate;
+import com.chaos.redis.delay.DelayQueueTemplate;
 import com.chaos.redis.idempotent.RedissonIdempotentRecordStore;
 import com.chaos.redis.idempotent.RedissonIdempotentRepository;
 import com.chaos.redis.key.PrefixedCacheKeyStrategy;
 import com.chaos.redis.key.RedisKeyPrefix;
 import com.chaos.redis.lock.RedissonDistributedLock;
+import com.chaos.redis.lua.LuaScriptExecutor;
 import com.chaos.redis.ratelimit.RedissonRateLimiter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -31,8 +33,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RBlockingQueue;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RBucket;
+import org.redisson.api.RDelayedQueue;
 import org.redisson.api.RLock;
 import org.redisson.api.RScript;
 import org.redisson.api.RedissonClient;
@@ -217,7 +221,82 @@ class RedisComponentsTest {
         assertThat(RedisKeyPrefix.of("order-service").apply("k")).isEqualTo("order-service:k");
         assertThat(RedisKeyPrefix.of("order-service:").apply("k")).isEqualTo("order-service:k");
         assertThat(RedisKeyPrefix.of(" ").apply("k")).isEqualTo("k");
+        assertThat(RedisKeyPrefix.none().value()).isEmpty();
         assertThat(new PrefixedCacheKeyStrategy(new DefaultCacheKeyStrategy(), RedisKeyPrefix.of("app")).build("user", "1"))
                 .isEqualTo("app:user:1");
+    }
+
+    /**
+     * 延迟队列模板、Lua 执行器、布隆创建复用及锁失败分支覆盖。
+     */
+    @Test
+    @SuppressWarnings({"unchecked", "deprecation"})
+    void shouldCoverDelayQueueLuaBloomAndLockFailureBranches() throws Exception {
+        RBlockingQueue<String> blockingQueue = mock(RBlockingQueue.class);
+        RDelayedQueue<String> delayedQueue = mock(RDelayedQueue.class);
+        when(client.<String>getBlockingQueue("app:orders")).thenReturn(blockingQueue);
+        when(client.getDelayedQueue(blockingQueue)).thenReturn(delayedQueue);
+        when(blockingQueue.take()).thenReturn("order-1");
+
+        DelayQueueTemplate delayQueue = new DelayQueueTemplate(client, RedisKeyPrefix.of("app"));
+        assertThatThrownBy(() -> delayQueue.offer("orders", "order-1", Duration.ofMillis(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> delayQueue.offer("orders", "order-1", null))
+                .isInstanceOf(IllegalArgumentException.class);
+        delayQueue.offer("orders", "order-1", Duration.ofSeconds(5));
+        verify(delayedQueue).offer("order-1", 5000L, TimeUnit.MILLISECONDS);
+        assertThat((String) delayQueue.take("orders")).isEqualTo("order-1");
+        delayQueue.destroy();
+        verify(delayedQueue).destroy();
+
+        RScript script = mock(RScript.class);
+        when(client.getScript()).thenReturn(script);
+        when(script.eval(RScript.Mode.READ_WRITE, "return 1", RScript.ReturnType.INTEGER, List.of("k"), "a"))
+                .thenReturn(1L);
+        LuaScriptExecutor lua = new LuaScriptExecutor(client);
+        assertThat((Long) lua.eval("return 1", RScript.ReturnType.INTEGER, List.of("k"), "a")).isEqualTo(1L);
+
+        RBloomFilter<String> bf = mock(RBloomFilter.class);
+        when(client.<String>getBloomFilter("app:bf")).thenReturn(bf);
+        when(bf.tryInit(1000L, 0.01)).thenReturn(true);
+        when(bf.add("u1")).thenReturn(true);
+        when(bf.contains("u1")).thenReturn(true);
+        BloomFilterTemplate bloom = new BloomFilterTemplate(client, RedisKeyPrefix.of("app"));
+        assertThat(bloom.create("bf", 1000L, 0.01)).isSameAs(bf);
+        assertThat(bloom.add("bf", "u1")).isTrue();
+        assertThat(bloom.mightContain("bf", "u1")).isTrue();
+
+        RBloomFilter<String> remoteBf = mock(RBloomFilter.class);
+        when(client.<String>getBloomFilter("app:remote")).thenReturn(remoteBf);
+        when(remoteBf.isExists()).thenReturn(true);
+        when(remoteBf.contains("x")).thenReturn(true);
+        assertThat(bloom.mightContain("remote", "x")).isTrue();
+
+        RLock lock = mock(RLock.class);
+        when(client.getLock("busy")).thenReturn(lock);
+        when(lock.tryLock(50L, 100L, TimeUnit.MILLISECONDS)).thenReturn(false);
+        RedissonDistributedLock distributedLock = new RedissonDistributedLock(client);
+        assertThat(distributedLock.tryLock("busy", Duration.ofMillis(50), Duration.ofMillis(100))).isEmpty();
+
+        when(lock.tryLock(anyLong(), anyLong(), eq(TimeUnit.MILLISECONDS))).thenThrow(new InterruptedException("stop"));
+        try {
+            assertThat(distributedLock.tryLock("busy", Duration.ZERO, Duration.ofSeconds(1))).isEmpty();
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+
+        RLock execLock = mock(RLock.class);
+        when(client.getLock("exec-key")).thenReturn(execLock);
+        when(execLock.tryLock(0L, -1L, TimeUnit.MILLISECONDS)).thenReturn(true);
+        when(execLock.isHeldByCurrentThread()).thenReturn(false);
+        assertThat(distributedLock.execute("exec-key", null, null, () -> "done")).isEqualTo("done");
+        assertThatThrownBy(() -> distributedLock.execute("busy", Duration.ofMillis(50), Duration.ofMillis(100), () -> "x"))
+                .isInstanceOf(IllegalStateException.class);
+
+        RBucket<Object> idemBucket = mock(RBucket.class);
+        when(client.getBucket("idem:1")).thenReturn(idemBucket);
+        when(idemBucket.setIfAbsent(any(), eq(Duration.ofSeconds(10)))).thenReturn(true);
+        assertThat(new RedissonIdempotentRepository(client).saveIfAbsent("idem:1", Duration.ofSeconds(10))).isTrue();
     }
 }

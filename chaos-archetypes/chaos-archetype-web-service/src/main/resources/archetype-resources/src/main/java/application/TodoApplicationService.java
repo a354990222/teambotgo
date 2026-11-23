@@ -1,5 +1,7 @@
 package ${package}.application;
 
+import ${package}.application.command.CreateTodoCommand;
+import ${package}.application.result.TodoResult;
 import ${package}.domain.todo.Todo;
 import ${package}.domain.todo.TodoRepository;
 import com.chaos.core.context.RequestContext;
@@ -35,32 +37,32 @@ public class TodoApplicationService {
      * 查询当前租户的待办。
      */
     @Permission("todo:read")
-    public List<TodoView> list() {
-        return todoRepository.findAll(currentTenant()).stream().map(TodoView::from).toList();
+    public List<TodoResult> list() {
+        return todoRepository.findAll(currentTenant()).stream().map(TodoResult::from).toList();
     }
 
     /**
      * 创建待办。
      */
     @Permission("todo:write")
-    public TodoView create(String title) {
-        Todo todo = Todo.create(currentTenant(), title);
+    public TodoResult create(CreateTodoCommand command) {
+        Todo todo = Todo.create(currentTenant(), command.title());
         todoRepository.save(todo);
         domainEventPublisher.publishAll(todo.domainEvents());
         todo.clearDomainEvents();
-        return TodoView.from(todo);
+        return TodoResult.from(todo);
     }
 
     /**
      * 完成待办。
      */
     @Permission("todo:write")
-    public TodoView complete(String id) {
+    public TodoResult complete(String id) {
         Todo todo = todoRepository.findById(currentTenant(), id)
                 .orElseThrow(() -> new BizException(CommonErrorCode.NOT_FOUND, "待办不存在"));
         todo.complete();
         todoRepository.save(todo);
-        return TodoView.from(todo);
+        return TodoResult.from(todo);
     }
 
     private static String currentTenant() {
@@ -69,19 +71,5 @@ public class TodoApplicationService {
             throw new BizException(CommonErrorCode.FORBIDDEN, "当前登录用户未绑定租户");
         }
         return tenantId;
-    }
-
-    /**
-     * 待办视图。
-     *
-     * @param id 待办 ID
-     * @param title 标题
-     * @param completed 是否完成
-     */
-    public record TodoView(String id, String title, boolean completed) {
-
-        static TodoView from(Todo todo) {
-            return new TodoView(todo.id(), todo.title(), todo.completed());
-        }
     }
 }

@@ -15,6 +15,10 @@
         Test fixtures for applications built on chaos: request/tenant context extension, LoginUser security helpers,
         in-memory RedisTemplate, Testcontainers property registration and production-safety runner helpers.
     </description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <!--
         使用方应以 test scope 引入本模块。除 JUnit 与 chaos-core 外，其余依赖均为 optional：
         只有项目本身已经引入对应框架（Spring Security、Spring Data Redis、Testcontainers 等）时，相应辅助类才可用，

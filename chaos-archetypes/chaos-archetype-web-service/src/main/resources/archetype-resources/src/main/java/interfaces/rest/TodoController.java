@@ -1,11 +1,11 @@
 package ${package}.interfaces.rest;
 
 import ${package}.application.TodoApplicationService;
-import ${package}.application.TodoApplicationService.TodoView;
+import ${package}.application.command.CreateTodoCommand;
+import ${package}.interfaces.rest.request.CreateTodoRequest;
+import ${package}.interfaces.rest.response.TodoResponse;
 import com.chaos.web.idempotent.Idempotent;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,8 +31,8 @@ public class TodoController {
     }
 
     @GetMapping
-    public List<TodoView> list() {
-        return todoApplicationService.list();
+    public List<TodoResponse> list() {
+        return todoApplicationService.list().stream().map(TodoResponse::from).toList();
     }
 
     /**
@@ -40,22 +40,12 @@ public class TodoController {
      */
     @PostMapping
     @Idempotent
-    public TodoView create(@Valid @RequestBody CreateTodoRequest request) {
-        return todoApplicationService.create(request.title());
+    public TodoResponse create(@Valid @RequestBody CreateTodoRequest request) {
+        return TodoResponse.from(todoApplicationService.create(new CreateTodoCommand(request.title())));
     }
 
     @PostMapping("/{id}/complete")
-    public TodoView complete(@PathVariable String id) {
-        return todoApplicationService.complete(id);
-    }
-
-    /**
-     * 创建待办请求。
-     *
-     * @param title 标题
-     */
-    public record CreateTodoRequest(
-            @NotBlank(message = "标题不能为空") @Size(max = 100, message = "标题最长 100 个字符") String title
-    ) {
+    public TodoResponse complete(@PathVariable String id) {
+        return TodoResponse.from(todoApplicationService.complete(id));
     }
 }

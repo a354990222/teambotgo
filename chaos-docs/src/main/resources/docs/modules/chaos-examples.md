@@ -2,15 +2,16 @@
 
 ## 职责
 
-提供可运行的三服务落地样板：
+提供可运行的四模块三服务落地样板：
 
 ```text
 example-auth-server    OAuth2 授权服务器，提供 password、sms_code 登录，支持 JWT token 和 Redis/reference token profile
+example-order-api      订单对外契约（OrderApiClient OpenFeign 接口、OrderDto、CreateOrderApiRequest、OrderErrorCode）
+example-order-service  DDD 四层结构订单服务（interfaces / application / domain / infrastructure），演示 Web、Security、MyBatis Plus、租户、数据权限、outbox、Prometheus
 example-gateway        Spring Cloud Gateway 入口，提供鉴权、租户校验、限流、黑名单、trace 透传
-example-order-service  订单资源服务，演示 Web、Security、MyBatis Plus、租户、数据权限、事务、Prometheus
 ```
 
-示例工程只依赖 starter，不直接依赖 autoconfigure。
+示例工程只依赖 starter，不直接依赖 autoconfigure。可通过根目录 [docker-compose.yml](../../../../../../chaos-examples/docker-compose.yml) 一键拉起 Redis 7.4、MySQL 8.4、Nacos 2.4.3 与 Kafka 3.9.0；`example-order-service` 内含 `ExampleOrderArchitectureTest`、`OrderApiContractTest` 与 `OrderComponentsAndControllerTest`。
 
 ## 启动顺序
 

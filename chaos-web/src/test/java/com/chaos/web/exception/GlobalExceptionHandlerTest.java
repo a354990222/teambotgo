@@ -36,7 +36,7 @@ class GlobalExceptionHandlerTest {
     void shouldKeepStatusOfResponseStatusException() throws Exception {
         mockMvc.perform(get("/status"))
                 .andExpect(status().isGone())
-                .andExpect(jsonPath("$.code").value("410"))
+                .andExpect(jsonPath("$.code").value("COMMON_GONE"))
                 .andExpect(content().string(not(containsString("secret"))));
     }
 
@@ -47,19 +47,19 @@ class GlobalExceptionHandlerTest {
     void shouldHideInternalMessageForServerErrors() throws Exception {
         mockMvc.perform(get("/server-error"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.code").value("500"))
+                .andExpect(jsonPath("$.code").value("COMMON_INTERNAL_ERROR"))
                 .andExpect(jsonPath("$.message").value("internal server error"))
                 .andExpect(content().string(not(containsString("password"))));
     }
 
     /**
-     * 405 状态码与错误码保持一致。
+     * HTTP 405 与语义错误码独立返回。
      */
     @Test
     void shouldUseConsistentMethodNotAllowedCode() throws Exception {
         mockMvc.perform(put("/limited"))
                 .andExpect(status().isMethodNotAllowed())
-                .andExpect(jsonPath("$.code").value("405"));
+                .andExpect(jsonPath("$.code").value("COMMON_METHOD_NOT_ALLOWED"));
     }
 
     /**

@@ -65,4 +65,41 @@ class RateLimitInterceptorTest {
             return request;
         }).header("X-Forwarded-For", "198.51.100.2")).andExpect(status().isOk());
     }
+
+    /**
+     * 默认 ANNOTATION_ONLY 模式下未标注 @RateLimit 的接口不触发限流。
+     */
+    @Test
+    void shouldNotLimitUnannotatedEndpointsByDefault() throws Exception {
+        ChaosWebProperties properties = new ChaosWebProperties();
+        properties.getRateLimit().setDefaultPermitsPerSecond(1);
+        RateLimitInterceptor interceptor = new RateLimitInterceptor(
+                properties, new InMemoryRateLimiter(), new DefaultRateLimitKeyResolver(new ClientIpResolver()));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new TestController())
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .addInterceptors(interceptor)
+                .build();
+
+        mvc.perform(get("/map")).andExpect(status().isOk());
+        mvc.perform(get("/map")).andExpect(status().isOk());
+    }
+
+    /**
+     * 显式切换为 GLOBAL 模式后，未标注 @RateLimit 的接口也受 default-permits-per-second 约束。
+     */
+    @Test
+    void shouldLimitUnannotatedEndpointsWhenGlobalModeEnabled() throws Exception {
+        ChaosWebProperties properties = new ChaosWebProperties();
+        properties.getRateLimit().setMode(ChaosWebProperties.RateLimitMode.GLOBAL);
+        properties.getRateLimit().setDefaultPermitsPerSecond(1);
+        RateLimitInterceptor interceptor = new RateLimitInterceptor(
+                properties, new InMemoryRateLimiter(), new DefaultRateLimitKeyResolver(new ClientIpResolver()));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new TestController())
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .addInterceptors(interceptor)
+                .build();
+
+        mvc.perform(get("/map")).andExpect(status().isOk());
+        mvc.perform(get("/map")).andExpect(status().isTooManyRequests());
+    }
 }

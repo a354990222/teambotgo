@@ -17,8 +17,11 @@
 | `...job` | `ChaosJobAutoConfiguration` |
 | `...mq` | `ChaosMqAutoConfiguration`、`ChaosMqOutboxAutoConfiguration` |
 | `...mybatis` | `ChaosMybatisAutoConfiguration` |
-| `...redis` | `ChaosRedisAutoConfiguration` |
+| `...process` | `ChaosProcessAutoConfiguration` |
+| `...redis` | `ChaosRedisAutoConfiguration`、`ChaosRedisCacheAsideAutoConfiguration` |
 | `...storage` | `ChaosStorageAutoConfiguration` |
+| `...time` | `ChaosTimeAutoConfiguration` |
+| `...diagnostics` | `ChaosDiagnosticsAutoConfiguration` |
 | `...support` | 生产安全检查：`ProductionSafety`、`ProductionSafetyEnforcer`、`@UnsafeForProduction` |
 
 所有自动装配登记在唯一的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`。

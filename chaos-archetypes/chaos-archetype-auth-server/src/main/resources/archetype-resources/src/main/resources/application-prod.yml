@@ -18,9 +18,11 @@ chaos:
       type: redis
     client:
       store-type: redis
-      id: ${CHAOS_CLIENT_ID}
-      # 使用 {bcrypt} 等加密格式的密钥，从 Secret / 配置中心注入。
-      secret: ${CHAOS_CLIENT_SECRET}
+      registrations:
+        default-client:
+          client-id: ${CHAOS_CLIENT_ID}
+          # 使用 {bcrypt} 等加密格式的密钥，从 Secret / 配置中心注入。
+          secret: ${CHAOS_CLIENT_SECRET}
     jwk:
       key-id: ${CHAOS_JWK_KEY_ID}
       private-key-location: ${CHAOS_JWK_PRIVATE_KEY_LOCATION}

@@ -22,6 +22,10 @@
             <artifactId>chaos-trace</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.chaos</groupId>
+            <artifactId>chaos-http-client</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>

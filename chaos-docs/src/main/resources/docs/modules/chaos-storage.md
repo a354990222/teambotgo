@@ -94,6 +94,6 @@ URL url = objectStorageClient.presignedGetUrl("user-files", key, Duration.ofMinu
 
 `LocalObjectStorageClient` 实现已有 `ObjectStorageClient` 的 put/get/delete，bucket 为独立子目录，大小返回实际写入值。显式构造使用，不新增默认 Bean；`presignedGetUrl` 抛出 `UnsupportedOperationException`，由应用提供鉴权下载。
 
-显式依赖 `chaos-storage-document` 可使用 `FileSignatures` 与 `OfficeDocuments`。前者仅识别 PDF/图片/OLE/OOXML 签名，不代表安全或完全可解析；后者严格检查 Office 主内容类型、宏和加密，抛出携带技术 Reason 的 `Rejected`，由业务映射错误。此模块依赖 POI，不包含在默认 storage starter 中。
+文档格式校验工具 `FileSignatures` 与 `OfficeDocuments` 现归入 `chaos-excel`（`com.chaos.excel.document`）。前者仅识别 PDF/图片/OLE/OOXML 签名，不代表安全或完全可解析；后者严格检查 Office 主内容类型、宏和加密，抛出携带技术 Reason 的 `Rejected`，由业务映射错误。该能力依赖 POI，不包含在默认 `chaos-storage-starter` 中。
 
 两个 Office 路径均由调用方传入 `ZipArchives.Limits`；JDK ZIP 检查使用中心目录，支持 ZIP64，内存输入会临时落盘并清理。业务允许的格式、上传大小、租户路径、文件确认及删除时机由调用方持有。

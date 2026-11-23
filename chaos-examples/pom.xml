@@ -19,6 +19,7 @@
     </properties>
     <modules>
         <module>example-auth-server</module>
+        <module>example-order-api</module>
         <module>example-order-service</module>
         <module>example-gateway</module>
     </modules>

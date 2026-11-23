@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.opentest4j.AssertionFailedError;
@@ -41,6 +42,29 @@ class DddArchitectureAssertionsTest {
 
         assertThrows(AssertionFailedError.class, () -> DddArchitectureAssertions.assertLayeredArchitecture(
                 sourceRoot, "com.example.order"));
+    }
+
+    @Test
+    void modularBoundariesShouldAllowFacadeAndRejectInternalImports() throws IOException {
+        write("com/example/app/inventory/facade/InventoryFacade.java",
+                "package com.example.app.inventory.facade; public interface InventoryFacade {}");
+        write("com/example/app/inventory/domain/Inventory.java",
+                "package com.example.app.inventory.domain; public class Inventory {}");
+        write("com/example/app/order/application/OrderService.java",
+                "package com.example.app.order.application;\n"
+                        + "import com.example.app.inventory.facade.InventoryFacade;\n"
+                        + "public class OrderService {}\n");
+
+        assertDoesNotThrow(() -> DddArchitectureAssertions.assertModularBoundaries(
+                sourceRoot, "com.example.app", List.of("order", "inventory")));
+
+        write("com/example/app/order/application/BadOrderService.java",
+                "package com.example.app.order.application;\n"
+                        + "import com.example.app.inventory.domain.Inventory;\n"
+                        + "public class BadOrderService {}\n");
+
+        assertThrows(AssertionFailedError.class, () -> DddArchitectureAssertions.assertModularBoundaries(
+                sourceRoot, "com.example.app", List.of("order", "inventory")));
     }
 
     private void write(String relativePath, String source) throws IOException {

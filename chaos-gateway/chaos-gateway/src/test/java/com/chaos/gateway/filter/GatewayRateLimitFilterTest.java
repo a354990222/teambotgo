@@ -39,7 +39,7 @@ class GatewayRateLimitFilterTest {
 
         assertThat(first.getResponse().getStatusCode()).isNull();
         assertThat(second.getResponse().getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
-        assertThat(responseBody(second)).contains("\"code\":\"429\"");
+        assertThat(responseBody(second)).contains("\"code\":\"COMMON_TOO_MANY_REQUESTS\"");
     }
 
     /**

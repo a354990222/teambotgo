@@ -208,6 +208,24 @@ class JdbcOutboxMessageRepositoryTest {
     }
 
     /**
+     * 批量清理应支持多条与跨批次（超过 500 条）SENT 记录。
+     */
+    @Test
+    void shouldDeleteExpiredSentMessagesInBatches() {
+        for (int i = 0; i < 505; i++) {
+            repository.save(ReliableMessage.pending(envelope("batch-" + i)));
+        }
+        for (ReliableMessage claimed : repository.claimDueMessages(Instant.parse("2026-05-25T00:00:00Z"), 600)) {
+            repository.completeClaim(claimed.sent());
+        }
+
+        int deleted = repository.deleteSentMessagesBefore(Instant.now().plusSeconds(60), 600);
+        assertThat(deleted).isEqualTo(505);
+        assertThat(repository.findByMessageId("batch-0")).isEmpty();
+        assertThat(repository.findByMessageId("batch-504")).isEmpty();
+    }
+
+    /**
      * 查询不存在的消息返回空，基础设施异常必须抛出。
      */
     @Test

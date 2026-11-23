@@ -98,7 +98,7 @@ class ArchetypeArchitectureTest {
             try (Stream<Path> paths = Files.walk(templates)) {
                 for (Path file : paths.filter(Files::isRegularFile).toList()) {
                     String name = file.getFileName().toString();
-                    if (name.equals("application-prod.yml") || name.equals("README.md")) {
+                    if (name.equals("application-prod.yml") || name.equals("README.md") || name.equals("Dockerfile")) {
                         // archetype-metadata.xml 中声明为 filtered="false"，原样拷贝。
                         continue;
                     }

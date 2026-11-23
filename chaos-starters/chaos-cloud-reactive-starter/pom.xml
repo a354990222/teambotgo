@@ -22,6 +22,14 @@
             <artifactId>chaos-trace</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.chaos</groupId>
+            <artifactId>chaos-web-reactive</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>

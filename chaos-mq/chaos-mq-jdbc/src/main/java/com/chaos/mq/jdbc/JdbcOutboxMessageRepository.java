@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -293,11 +294,20 @@ public class JdbcOutboxMessageRepository implements OutboxMessageRepository {
                 ReliableMessageStatus.SENT.name(),
                 timestamp(sentBefore),
                 Math.max(limit, 1));
+        if (messageIds.isEmpty()) {
+            return 0;
+        }
         int deleted = 0;
-        for (String messageId : messageIds) {
-            deleted += jdbcOperations.update("delete from %s where message_id = ? and status = ?".formatted(tableName),
-                    messageId,
-                    ReliableMessageStatus.SENT.name());
+        int chunkSize = 500;
+        for (int start = 0; start < messageIds.size(); start += chunkSize) {
+            List<String> chunk = messageIds.subList(start, Math.min(start + chunkSize, messageIds.size()));
+            String placeholders = String.join(", ", Collections.nCopies(chunk.size(), "?"));
+            List<Object> params = new ArrayList<>(chunk.size() + 1);
+            params.add(ReliableMessageStatus.SENT.name());
+            params.addAll(chunk);
+            deleted += jdbcOperations.update(
+                    "delete from %s where status = ? and message_id in (%s)".formatted(tableName, placeholders),
+                    params.toArray());
         }
         return deleted;
     }

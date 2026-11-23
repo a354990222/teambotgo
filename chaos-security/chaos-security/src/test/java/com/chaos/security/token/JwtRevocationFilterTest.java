@@ -35,7 +35,7 @@ class JwtRevocationFilterTest {
         MockHttpServletResponse response = run(service(true, null), new ChaosSecurityProperties(), new AtomicBoolean());
 
         assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getContentAsString()).contains("\"code\":\"401\"");
+        assertThat(response.getContentAsString()).contains("\"code\":\"COMMON_UNAUTHORIZED\"");
         assertThat(response.getHeader("WWW-Authenticate")).contains("invalid_token");
     }
 
@@ -49,6 +49,7 @@ class JwtRevocationFilterTest {
                 service(false, new IllegalStateException("redis down")), new ChaosSecurityProperties(), invoked);
 
         assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(response.getContentAsString()).contains("\"code\":\"COMMON_SERVICE_UNAVAILABLE\"");
         assertThat(invoked).isFalse();
     }
 

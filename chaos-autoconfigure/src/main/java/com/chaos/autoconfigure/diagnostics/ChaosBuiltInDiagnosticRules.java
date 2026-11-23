@@ -44,7 +44,8 @@ public final class ChaosBuiltInDiagnosticRules {
                 ChaosBuiltInDiagnosticRules::productionSafetyRelaxed,
                 ChaosBuiltInDiagnosticRules::servletLibraryInReactiveApplication,
                 ChaosBuiltInDiagnosticRules::synchronousJdbcAudit,
-                ChaosBuiltInDiagnosticRules::missingAuthorizationPolicySource);
+                ChaosBuiltInDiagnosticRules::missingAuthorizationPolicySource,
+                ChaosBuiltInDiagnosticRules::nacosIsolation);
     }
 
     /**
@@ -202,6 +203,42 @@ public final class ChaosBuiltInDiagnosticRules {
         return List.of(new Finding(Severity.WARN, "web",
                 "网关（WebFlux）应用的类路径中存在 chaos-web（Servlet），chaos-web 的过滤器与拦截器不会生效",
                 "网关服务移除 chaos-web-starter / chaos-web-service-starter，只保留 chaos-gateway-starter"));
+    }
+
+    /**
+     * Nacos 未配置命名空间或在生产模式下仍使用 DEFAULT_GROUP：不同环境的服务注册与配置可能互相串扰。
+     */
+    static List<Finding> nacosIsolation(ChaosDiagnosticContext context) {
+        if (!context.isEnabled("cloud-nacos") && !context.isEnabled("gateway-nacos")) {
+            return List.of();
+        }
+        List<Finding> findings = new ArrayList<>();
+        String discoveryNs = context.property("spring.cloud.nacos.discovery.namespace");
+        String configNs = context.property("spring.cloud.nacos.config.namespace");
+        if (discoveryNs.isEmpty() && configNs.isEmpty()) {
+            findings.add(new Finding(
+                    context.productionMode() ? Severity.WARN : Severity.INFO,
+                    "cloud-nacos",
+                    "未配置 Nacos namespace，服务注册与配置会落入 public 默认命名空间，不同环境容易串扰",
+                    "按环境显式配置 spring.cloud.nacos.discovery.namespace 与 spring.cloud.nacos.config.namespace"));
+        }
+        if (context.productionMode() && usesDefaultNacosGroup(context)) {
+            findings.add(new Finding(
+                    Severity.WARN,
+                    "cloud-nacos",
+                    "生产模式下仍使用 Nacos DEFAULT_GROUP，建议按业务域或环境分组隔离配置与服务实例",
+                    "显式配置 chaos.nacos.group 及 spring.cloud.nacos.{discovery,config}.group 为非 DEFAULT_GROUP 值"));
+        }
+        return findings;
+    }
+
+    private static boolean usesDefaultNacosGroup(ChaosDiagnosticContext context) {
+        String chaosGroup = normalize(context.property("chaos.nacos.group"), "DEFAULT_GROUP");
+        String discoveryGroup = normalize(context.property("spring.cloud.nacos.discovery.group"), "DEFAULT_GROUP");
+        String configGroup = normalize(context.property("spring.cloud.nacos.config.group"), "DEFAULT_GROUP");
+        return "DEFAULT_GROUP".equals(chaosGroup)
+                && "DEFAULT_GROUP".equals(discoveryGroup)
+                && "DEFAULT_GROUP".equals(configGroup);
     }
 
     private static String normalize(String value, String defaultValue) {

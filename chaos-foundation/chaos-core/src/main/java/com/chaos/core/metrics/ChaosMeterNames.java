@@ -99,6 +99,17 @@ public final class ChaosMeterNames {
     public static final String PROCESS_TASKS_COMPLETED = "chaos.process.tasks.completed";
 
     /**
+     * 熔断与舱壁调用决策次数。标签：{@link #TAG_SOURCE}（gateway / feign / http-client）、
+     * {@link #TAG_OUTCOME}（success / failure / circuit-open / bulkhead-full / timeout）。
+     */
+    public static final String RESILIENCE_CALLS = "chaos.resilience.calls";
+
+    /**
+     * 断路器状态切换次数。标签：{@link #TAG_SOURCE}、{@link #TAG_OUTCOME}（目标状态名，小写）。
+     */
+    public static final String RESILIENCE_STATE_TRANSITIONS = "chaos.resilience.state.transitions";
+
+    /**
      * HTTP 服务端请求指标名（Spring Boot 内置，列在这里便于统一引用）。
      */
     public static final String HTTP_SERVER_REQUESTS = "http.server.requests";

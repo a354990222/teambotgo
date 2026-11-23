@@ -2,6 +2,9 @@ package com.chaos.security.api.datascope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.chaos.core.context.ContextAccessor;
+import com.chaos.core.context.ContextPropagation;
+import com.chaos.core.context.ContextSnapshot;
 import com.chaos.security.api.access.AccessSubject;
 import com.chaos.security.api.access.AuthorizationDecision;
 import com.chaos.security.api.access.AuthorizationPolicy;
@@ -116,5 +119,21 @@ class DataScopeContextTest {
         DataScopeRequest request = DataScopeRequest.of("dept").withSql("OrderMapper.selectList", "biz_order");
 
         assertThat(service.isAllowed(request)).isTrue();
+    }
+
+    /**
+     * 数据权限上下文应参与 ContextPropagation 跨线程传播和请求边界清理。
+     */
+    @Test
+    void dataScopeContextShouldPropagateAndClearViaContextPropagation() {
+        DataScopeContext.push("dept");
+        ContextSnapshot snapshot = ContextPropagation.capture();
+        ContextPropagation.clearAll();
+        assertThat(DataScopeContext.current()).isBlank();
+
+        try (ContextAccessor.Scope ignored = ContextPropagation.restore(snapshot)) {
+            assertThat(DataScopeContext.current()).isEqualTo("dept");
+        }
+        assertThat(DataScopeContext.current()).isBlank();
     }
 }

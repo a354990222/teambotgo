@@ -9,6 +9,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -34,6 +36,8 @@ public final class DddArchitectureAssertions {
             "RepositoryImpl", "Controller"
     );
 
+    private static final Pattern IMPORT_STATEMENT = Pattern.compile("\\bimport\\s+(?:static\\s+)?([A-Za-z0-9_.*]+)\\s*;");
+
     private DddArchitectureAssertions() {
     }
 
@@ -58,6 +62,54 @@ public final class DddArchitectureAssertions {
             inspectPersistencePackage(boundedContext.resolve("infrastructure/persistence"), violations);
         }
         assertTrue(violations.isEmpty(), () -> "DDD 架构约束不满足:\n" + String.join("\n", violations));
+    }
+
+    /**
+     * 校验模块化单体内部各业务模块间的调用边界。
+     *
+     * <p>业务模块之间不得直接 import 对方的 {@code application}、{@code domain} 或 {@code infrastructure} 包，
+     * 必须通过 {@code facade}、{@code interfaces} 或领域事件协作。</p>
+     *
+     * @param javaSourceRoot Maven 主源码目录
+     * @param basePackage 工程根包，例如 {@code com.example.app}
+     * @param moduleNames 业务模块子包名列表，例如 {@code List.of("order", "inventory")}
+     */
+    public static void assertModularBoundaries(Path javaSourceRoot, String basePackage, List<String> moduleNames) {
+        Path root = javaSourceRoot.resolve(basePackage.replace('.', '/'));
+        List<String> violations = new ArrayList<>();
+        if (!Files.isDirectory(root)) {
+            violations.add("工程根包不存在: " + root);
+        } else {
+            List<String> internalSubPackages = List.of(
+                    ".application.", ".application;",
+                    ".domain.", ".domain;",
+                    ".infrastructure.", ".infrastructure;",
+                    ".infra.", ".infra;");
+            for (String caller : moduleNames) {
+                Path callerDir = root.resolve(caller);
+                for (Path file : javaFiles(callerDir, violations)) {
+                    String source = read(file, violations);
+                    Matcher matcher = IMPORT_STATEMENT.matcher(source);
+                    while (matcher.find()) {
+                        String imported = matcher.group(1);
+                        for (String target : moduleNames) {
+                            if (target.equals(caller)) {
+                                continue;
+                            }
+                            String targetPrefix = basePackage + "." + target + ".";
+                            if (imported.startsWith(targetPrefix)) {
+                                String rest = "." + imported.substring(targetPrefix.length());
+                                boolean forbidden = internalSubPackages.stream().anyMatch(rest::startsWith);
+                                if (forbidden) {
+                                    violations.add(file + " 跨模块非法依赖 " + target + " 内部实现: " + imported);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(violations.isEmpty(), () -> "模块化边界约束不满足:\n" + String.join("\n", violations));
     }
 
     private static void inspectDomain(Path domain, List<String> violations) {

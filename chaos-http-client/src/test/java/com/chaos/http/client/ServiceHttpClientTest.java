@@ -7,6 +7,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.chaos.core.constant.ChaosHeaders;
+import com.chaos.trace.TraceContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -128,6 +130,27 @@ class ServiceHttpClientTest {
                     () -> new TestClient(rest, fixedToken()).post("/internal/x", Map.of(),
                             new ParameterizedTypeReference<Map<String, Object>>() { }, key, null, null));
             server.verify();
+        }
+    }
+
+    @Test
+    void shouldPropagateTraceHeadersOnOutboundRequests() {
+        TraceContext.start("0123456789abcdef0123456789abcdef", "0123456789abcdef", "tenant-1", "alice", "order-svc");
+        try {
+            RestTemplate rest = new RestTemplate();
+            MockRestServiceServer server = MockRestServiceServer.bindTo(rest).build();
+            server.expect(requestTo("http://foundation/internal/ping"))
+                    .andExpect(header(ChaosHeaders.TRACE_ID, "0123456789abcdef0123456789abcdef"))
+                    .andRespond(withSuccess("{\"code\":\"0\",\"data\":\"pong\"}", MediaType.APPLICATION_JSON));
+
+            String result = new TestClient(rest, fixedToken())
+                    .get("/internal/ping", new ParameterizedTypeReference<>() {
+                    });
+
+            assertEquals("pong", result);
+            server.verify();
+        } finally {
+            TraceContext.clear();
         }
     }
 

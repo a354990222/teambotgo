@@ -448,9 +448,9 @@ public class ChaosAuthorizationAutoConfiguration {
     /**
      * 注册 JWT 撤销服务。
      *
-     * <p>与资源服务器、网关共用 chaos-security-redis 中唯一的 {@link RedisJwtRevocationService}：
+     * <p>与资源服务器、网关共用 chaos-security-redis 中唯一的 {@code RedisJwtRevocationService}：
      * 引入 chaos-redis-starter 时由 {@code ChaosSecurityRedisAutoConfiguration} 先行注册；授权服务器只引入
-     * Spring Data Redis 时在这里用 {@link StringRedisTemplate} 注册同一实现。必须使用字符串序列化的模板，
+     * Spring Data Redis 时在这里用 {@code StringRedisTemplate} 注册同一实现。必须使用字符串序列化的模板，
      * 旧实现使用 {@code RedisTemplate<Object, Object>}（JDK 序列化 key），写入的黑名单对资源服务器不可见。</p>
      */
     @Bean

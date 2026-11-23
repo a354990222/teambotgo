@@ -16,6 +16,10 @@
         authorization server, resource servers and gateway, plus Redis-backed authorization server stores
         (authorization, registered client, consent, session registry, kickout, captcha, login lock).
     </description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <!-- StaleValueReader 丢弃不兼容存量数据时要留痕，否则"令牌悄悄失效"无从排查。 -->
         <dependency>

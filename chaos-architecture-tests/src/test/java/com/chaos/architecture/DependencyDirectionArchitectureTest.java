@@ -90,8 +90,8 @@ class DependencyDirectionArchitectureTest {
             Map.entry("chaos-security-redis", "com.chaos.security.redis"),
             Map.entry("chaos-authorization", "com.chaos.authorization"),
             Map.entry("chaos-web", "com.chaos.web"),
+            Map.entry("chaos-web-reactive", "com.chaos.web.reactive"),
             Map.entry("chaos-http-client", "com.chaos.http.client"),
-            Map.entry("chaos-transaction", "com.chaos.transaction"),
             Map.entry("chaos-service", "com.chaos.service"),
             Map.entry("chaos-mybatis", "com.chaos.mybatis"),
             Map.entry("chaos-redis", "com.chaos.redis"),
@@ -104,13 +104,13 @@ class DependencyDirectionArchitectureTest {
             Map.entry("chaos-gateway-nacos", "com.chaos.gateway.nacos"),
             Map.entry("chaos-job", "com.chaos.job"),
             Map.entry("chaos-storage", "com.chaos.storage"),
-            Map.entry("chaos-storage-document", "com.chaos.storage.document"),
             Map.entry("chaos-storage-minio", "com.chaos.storage.minio"),
             Map.entry("chaos-storage-oss", "com.chaos.storage.oss"),
             Map.entry("chaos-autoconfigure", "com.chaos.autoconfigure"),
             Map.entry("chaos-test-support", "com.chaos.test"),
             Map.entry("example-auth-server", "com.chaos.examples.auth"),
             Map.entry("example-gateway", "com.chaos.examples.gateway"),
+            Map.entry("example-order-api", "com.chaos.examples.order.api"),
             Map.entry("example-order-service", "com.chaos.examples.order")
     );
 
@@ -213,7 +213,7 @@ class DependencyDirectionArchitectureTest {
         Module autoconfigure = project.module("chaos-autoconfigure");
         List<String> violations = new ArrayList<>();
         for (Path source : ProjectModel.mainSources(autoconfigure)) {
-            String content = Files.readString(source, StandardCharsets.UTF_8);
+            String content = ProjectModel.codeWithoutComments(source);
             Matcher typeMatcher = IMPLEMENTATION_TYPE.matcher(content);
             if (typeMatcher.find()) {
                 violations.add(project.relative(source) + " 声明了实现类型 " + typeMatcher.group(1));

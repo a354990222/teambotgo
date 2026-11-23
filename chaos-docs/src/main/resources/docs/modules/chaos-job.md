@@ -2,11 +2,13 @@
 
 ## 职责
 
-定时任务执行支持：
+定时任务执行支持（**定位边界：仅提供分布式锁互斥与 Trace/MDC 上下文增强**）：
 
 - `JobExecutor` / `JobExecutionContext`：任务执行端口与上下文；
 - `DistributedJobRunner`：带分布式互斥、独立 traceId 和 MDC 任务名的执行器；
 - `chaos-autoconfigure`（job）：开启 Spring Scheduling 并注册 `DistributedJobRunner`。
+
+> 说明：`chaos-job` 故意保持轻量，**只做分布式互斥与上下文/可观测性增强，不内置任务分片、失败自动重试、执行历史落库与控制台手动触发**。如需分片调度、人工重跑与控制台运维，请接入 XXL-JOB / PowerJob 并将 `chaos.job.scheduling-enabled` 设为 `false`，任务函数内部仍可复用 `DistributedJobRunner` 获取统一 traceId/MDC 与日志审计格式。
 
 ## 依赖方式
 

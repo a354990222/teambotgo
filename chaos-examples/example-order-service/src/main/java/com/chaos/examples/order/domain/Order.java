@@ -1,6 +1,7 @@
 package com.chaos.examples.order.domain;
 
 import com.chaos.domain.model.AggregateRoot;
+import com.chaos.domain.model.DomainException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -42,11 +43,11 @@ public class Order extends AggregateRoot<Long> {
     /**
      * 创建新订单并注册订单创建事件。
      *
-     * @throws IllegalArgumentException 金额不大于 0 或必填字段为空
+     * @throws DomainException 金额不大于 0 或必填字段为空
      */
     public static Order create(String orderNo, String tenantId, String buyerId, BigDecimal amount) {
         if (amount == null || amount.signum() <= 0) {
-            throw new IllegalArgumentException("order amount must be greater than 0");
+            throw new DomainException("order amount must be greater than 0");
         }
         Order order = new Order(null, orderNo, tenantId, buyerId, amount, OrderStatus.CREATED, null);
         order.registerEvent(OrderCreatedEvent.of(order, Instant.now()));
@@ -100,7 +101,7 @@ public class Order extends AggregateRoot<Long> {
 
     private static String requireText(String value, String name) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(name + " must not be blank");
+            throw new DomainException(name + " must not be blank");
         }
         return value;
     }

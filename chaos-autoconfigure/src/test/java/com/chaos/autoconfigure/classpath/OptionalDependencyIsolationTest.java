@@ -126,6 +126,7 @@ class OptionalDependencyIsolationTest {
         THIRD_PARTY_GROUPS.put("micrometer-tracing", "micrometer-tracing.*");
         THIRD_PARTY_GROUPS.put("webmvc", "spring-webmvc|tomcat-embed-.*|springdoc-openapi-starter-webmvc.*");
         THIRD_PARTY_GROUPS.put("webflux", "spring-webflux|reactor-netty.*|spring-cloud-gateway.*|spring-cloud-starter-gateway.*");
+        THIRD_PARTY_GROUPS.put("caffeine", "caffeine.*");
     }
 
     private static final List<ClasspathEntry> CLASSPATH = readClasspath();

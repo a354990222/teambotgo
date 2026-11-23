@@ -27,11 +27,15 @@ CI 中由 `.github/workflows/ci.yml` 的 `integration-test` job 执行，GitHub 
 
 ## 覆盖范围
 
-| 模块 | 基础设施 | 验证点 |
-| --- | --- | --- |
-| chaos-redis | Redis 7.2 | Redisson 分布式锁、幂等 key、Lua、JWT 黑名单 |
-| chaos-mybatis | MySQL 8.4 | MyBatis Plus 租户拦截器真实 SQL 改写 |
-| chaos-mq-kafka | Kafka 3.8 | Kafka 消息头携带 legacy trace 和 W3C traceparent |
+仓库现有 5 个 `*IT` 集成测试类，覆盖 Redis、MySQL 与 Kafka 真实容器链路：
+
+| 模块 | 测试类 | 基础设施 | 验证点 |
+| --- | --- | --- | --- |
+| `chaos-redis` | `RedisInfrastructureIT` | `redis:7.4-alpine` | Redisson 分布式锁、幂等 key/响应快照、滑动窗口限流、Lua 脚本 |
+| `chaos-security-redis` | `RedisJwtRevocationServiceIT` | `redis:7.4-alpine` | 跨实例共享 JWT 黑名单撤销与 TTL 过期 |
+| `chaos-security-redis` | `RedisAuthorizationPolicySourceIT` | `redis:7.4-alpine` | Redis 动态 ABAC 授权策略加载与更新 |
+| `chaos-mybatis` | `MybatisTenantInfrastructureIT` | `mysql:8.4` | MyBatis-Plus 多租户拦截器真实 SQL 改写 |
+| `chaos-mq-kafka` | `KafkaMessagePublisherIT` | Kafka（Testcontainers） | Kafka 消息发送确认、`message-id` 与 W3C `traceparent` 头 |
 
 ## RocketMQ 策略
 

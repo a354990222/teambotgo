@@ -3,9 +3,13 @@ package com.chaos.service.context;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.chaos.trace.TraceContext;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * 异步任务 trace 上下文装饰器测试。
@@ -18,6 +22,7 @@ class TraceContextTaskDecoratorTest {
     @AfterEach
     void tearDown() {
         TraceContext.clear();
+        SecurityContextHolder.clearContext();
     }
 
     /**
@@ -35,5 +40,24 @@ class TraceContextTaskDecoratorTest {
 
         assertThat(traceId).hasValue("trace-task");
         assertThat(TraceContext.traceId()).isBlank();
+    }
+
+    /**
+     * 装饰器应在存在 Spring Security 时传播并恢复认证上下文。
+     */
+    @Test
+    void shouldPropagateSecurityContextToDecoratedTask() {
+        TestingAuthenticationToken auth = new TestingAuthenticationToken("alice", "n/a", List.of());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        TraceContextTaskDecorator decorator = new TraceContextTaskDecorator();
+        AtomicReference<Authentication> captured = new AtomicReference<>();
+
+        Runnable decorated = decorator.decorate(() -> captured.set(SecurityContextHolder.getContext().getAuthentication()));
+        SecurityContextHolder.clearContext();
+        decorated.run();
+
+        assertThat(captured.get()).isNotNull();
+        assertThat(captured.get().getName()).isEqualTo("alice");
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 }

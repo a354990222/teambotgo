@@ -1,5 +1,7 @@
 package com.chaos.trace.log;
 
+import com.chaos.core.context.ContextMdcKeys;
+
 /**
  * 框架统一 MDC 字段名。
  *
@@ -12,42 +14,42 @@ public final class MdcKeys {
     /**
      * 链路追踪 ID。
      */
-    public static final String TRACE_ID = "traceId";
+    public static final String TRACE_ID = ContextMdcKeys.TRACE_ID;
 
     /**
      * 当前调用跨度 ID。
      */
-    public static final String SPAN_ID = "spanId";
+    public static final String SPAN_ID = ContextMdcKeys.SPAN_ID;
 
     /**
      * 用户 ID。
      */
-    public static final String USER_ID = "userId";
+    public static final String USER_ID = ContextMdcKeys.USER_ID;
 
     /**
      * 租户 ID。
      */
-    public static final String TENANT_ID = "tenantId";
+    public static final String TENANT_ID = ContextMdcKeys.TENANT_ID;
 
     /**
      * 应用名称。
      */
-    public static final String APP_NAME = "appName";
+    public static final String APP_NAME = ContextMdcKeys.APP_NAME;
 
     /**
      * 请求 URI。
      */
-    public static final String URI = "uri";
+    public static final String URI = ContextMdcKeys.URI;
 
     /**
      * 客户端 IP。
      */
-    public static final String IP = "ip";
+    public static final String IP = ContextMdcKeys.IP;
 
     /**
      * 请求耗时，单位毫秒。
      */
-    public static final String COST = "cost";
+    public static final String COST = ContextMdcKeys.COST;
 
     private MdcKeys() {
     }

@@ -1,9 +1,12 @@
 package com.chaos.tenant.servlet;
 
 import com.chaos.core.context.RequestContext;
+import com.chaos.core.context.RequestContextSnapshot;
+import com.chaos.core.exception.CommonErrorCode;
 import com.chaos.core.metrics.ChaosMeterNames;
 import com.chaos.core.metrics.ChaosMetrics;
 import com.chaos.core.metrics.NoopChaosMetrics;
+import com.chaos.core.result.ApiResultJson;
 import com.chaos.tenant.TenantAccessDecision;
 import com.chaos.tenant.TenantAccessValidator;
 import com.chaos.tenant.TenantContext;
@@ -108,6 +111,8 @@ public class TenantAccessServletFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType("application/json");
-        response.getWriter().write("{\"code\":\"403\",\"message\":\"tenant access denied\",\"data\":null}");
+        String traceId = RequestContext.current().map(RequestContextSnapshot::traceId).orElse("");
+        response.getWriter().write(ApiResultJson.failure(
+                CommonErrorCode.FORBIDDEN, "tenant access denied", traceId));
     }
 }

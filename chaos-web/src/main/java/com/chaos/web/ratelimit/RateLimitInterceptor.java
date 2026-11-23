@@ -61,6 +61,10 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             return true;
         }
         RateLimit annotation = resolveAnnotation(handlerMethod);
+        if (annotation == null
+                && properties.getRateLimit().getMode() == ChaosWebProperties.RateLimitMode.ANNOTATION_ONLY) {
+            return true;
+        }
         int permits = annotation == null || annotation.permitsPerSecond() <= 0
                 ? properties.getRateLimit().getDefaultPermitsPerSecond()
                 : annotation.permitsPerSecond();

@@ -27,12 +27,15 @@ starter 分两层：
 | 还需要 | 能力 starter | 说明 |
 | --- | --- | --- |
 | 数据库 | `chaos-mybatis-starter` | MyBatis-Plus、分页上限、多租户 SQL 改写、数据权限、审计字段、乐观锁 |
-| Redis | `chaos-redis-starter` | Redisson、分布式锁、集群限流、幂等存储、布隆过滤器、延迟队列；**多实例 / 生产环境必需** |
-| 可靠消息 | `chaos-mq-starter` | outbox + Kafka / RocketMQ |
+| Redis | `chaos-redis-starter` | Redisson、分布式锁、集群限流、幂等存储、布隆过滤器、延迟队列、两级缓存（可选 Caffeine L1 + Redis L2）与 `CacheAsideTemplate`；**多实例 / 生产环境必需** |
+| 可靠消息 | `chaos-mq-starter` | Kafka / RocketMQ 抽象与自动装配 |
+| 可靠消息持久化 | `chaos-mq-jdbc-starter` | JDBC outbox 持久化与定时派发 |
 | 定时任务 | `chaos-job-starter` | `@EnableScheduling` + 分布式锁互斥执行 |
 | 状态机与流程 | `chaos-process-starter` | 无 Spring 依赖的状态机内核、流程端口；开发环境自动提供内存引擎，生产必须替换持久化实现 |
+| 流程持久化 | `chaos-process-jdbc-starter` / `chaos-process-redis-starter` | JDBC / Redis 版 `ProcessEngine` 实现 |
 | 对象存储 | `chaos-storage-starter` | MinIO / OSS |
-| 服务间调用 | `chaos-cloud-starter` | OpenFeign + LoadBalancer + trace 透传（Servlet）；响应式服务用 `chaos-cloud-reactive-starter` |
+| 服务间调用 | `chaos-cloud-starter` | `chaos-http-client`（`ServiceHttpClient`、Feign `Result` 解包/错误翻译、熔断舱壁）+ OpenFeign + LoadBalancer + trace 透传（Servlet） |
+| 响应式服务栈 | `chaos-cloud-reactive-starter` | `chaos-web-reactive`（WebFlux 统一 `ApiResult`、全局异常、Trace、非阻塞限流/幂等、XSS）+ `chaos-trace` + WebFlux + LoadBalancer + Actuator（不带 Feign） |
 | Nacos | `chaos-cloud-nacos-starter` / `chaos-gateway-nacos-starter` | 注册与配置约定 / 网关动态路由 |
 | 审计落库 | `chaos-audit-jdbc-starter` | JDBC 审计持久化 |
 

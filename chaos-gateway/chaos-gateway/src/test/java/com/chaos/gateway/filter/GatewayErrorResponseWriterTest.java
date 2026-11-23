@@ -52,14 +52,14 @@ class GatewayErrorResponseWriterTest {
         JsonNode json = body(exchange);
         assertThat(json.fieldNames()).toIterable()
                 .containsExactlyInAnyOrder("code", "message", "data", "traceId", "timestamp");
-        assertThat(json.get("code").asText()).isEqualTo("401");
+        assertThat(json.get("code").asText()).isEqualTo("COMMON_UNAUTHORIZED");
         assertThat(json.get("data").isNull()).isTrue();
         assertThat(json.get("traceId").asText()).isEqualTo("trace-gateway-1");
         assertThat(json.get("timestamp").asLong()).isPositive();
     }
 
     /**
-     * 各状态码使用与之一致的错误码。
+     * 各 HTTP 状态对应明确的语义错误码。
      */
     @Test
     void shouldUseErrorCodeMatchingStatus() throws Exception {
@@ -72,11 +72,11 @@ class GatewayErrorResponseWriterTest {
         StepVerifier.create(GatewayErrorResponseWriter.forbidden(forbidden)).verifyComplete();
 
         assertThat(tooMany.getResponse().getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
-        assertThat(body(tooMany).get("code").asText()).isEqualTo("429");
+        assertThat(body(tooMany).get("code").asText()).isEqualTo("COMMON_TOO_MANY_REQUESTS");
         assertThat(unavailable.getResponse().getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-        assertThat(body(unavailable).get("code").asText()).isEqualTo("503");
+        assertThat(body(unavailable).get("code").asText()).isEqualTo("COMMON_SERVICE_UNAVAILABLE");
         assertThat(forbidden.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(body(forbidden).get("code").asText()).isEqualTo("403");
+        assertThat(body(forbidden).get("code").asText()).isEqualTo("COMMON_FORBIDDEN");
     }
 
     /**

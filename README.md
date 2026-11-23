@@ -13,10 +13,10 @@
 | OAuth2 授权服务器 | `chaos-auth-server-starter` | `chaos-archetype-auth-server` |
 | 非 Web 服务（MQ 消费者、批处理） | `chaos-application-starter` | — |
 
-按需追加能力 starter：`chaos-mybatis-starter`（数据库、多租户）、`chaos-redis-starter`（生产必需：集群限流、幂等、token 黑名单）、
-`chaos-mq-starter`、`chaos-job-starter`、`chaos-process-starter`（状态机与流程引擎）、`chaos-storage-starter`、
-`chaos-cloud-starter`、`chaos-cloud-nacos-starter`。
-Excel 文件处理直接引入 `com.chaos:chaos-excel`。
+按需追加能力 starter：`chaos-mybatis-starter`（数据库、多租户、数据权限）、`chaos-redis-starter`（生产必需：集群限流、幂等、token 黑名单、两级缓存）、
+`chaos-mq-starter` + `chaos-mq-jdbc-starter`（可靠消息与 JDBC outbox）、`chaos-job-starter`、`chaos-process-starter` / `chaos-process-jdbc-starter` / `chaos-process-redis-starter`（状态机与流程引擎）、
+`chaos-storage-starter`、`chaos-cloud-starter`（含 `chaos-http-client` 服务间调用与 OpenFeign 解包）、`chaos-cloud-nacos-starter`、`chaos-audit-jdbc-starter`。
+Excel 导入导出与文档签名安全校验直接引入 `com.chaos:chaos-excel`。
 
 ## 快速开始
 
@@ -30,6 +30,8 @@ cd todo-service
 mvn verify            # 离线即可通过
 mvn spring-boot:run   # 日志中输出 Chaos 启动报告
 ```
+
+> 示例三服务联调可直接使用 [chaos-examples/docker-compose.yml](chaos-examples/docker-compose.yml) 启动 Redis 7.4、MySQL 8.4、Nacos 2.4.3 与 Kafka 3.9.0。
 
 手工接入：以 `com.chaos:chaos-boot-parent:1.0.0` 为 parent，引入场景 starter，从配置模板复制 `application.yml`。
 完整步骤见 [5 分钟上手](chaos-docs/src/main/resources/docs/getting-started.md)。

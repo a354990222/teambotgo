@@ -18,6 +18,5 @@
         <module>chaos-mybatis</module>
         <module>chaos-redis</module>
         <module>chaos-excel</module>
-        <module>chaos-transaction</module>
     </modules>
 </project>

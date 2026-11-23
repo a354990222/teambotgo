@@ -9,9 +9,13 @@ import java.net.InetAddress;
  * 节点组合必须在所有并行写入实例间唯一，时钟回拨沿用 MyBatis-Plus 的等待/失败策略。
  */
 public final class SnowflakeIdGenerator extends DefaultIdentifierGenerator implements IdGenerator {
+
+    private final boolean autoAssignedNode;
+
     /** 仅用于单实例开发的自动节点推断。生产环境应显式指定节点。 */
     public SnowflakeIdGenerator() {
         super((InetAddress) null);
+        this.autoAssignedNode = true;
     }
 
     /**
@@ -20,6 +24,14 @@ public final class SnowflakeIdGenerator extends DefaultIdentifierGenerator imple
      */
     public SnowflakeIdGenerator(long workerId, long datacenterId) {
         super(workerId, datacenterId);
+        this.autoAssignedNode = false;
+    }
+
+    /**
+     * 是否使用本机网卡/IP 自动推断工作节点（未显式指定 workerId 与 datacenterId）。
+     */
+    public boolean isAutoAssignedNode() {
+        return autoAssignedNode;
     }
 
     @Override

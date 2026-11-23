@@ -65,6 +65,13 @@ public class GlobalExceptionHandler {
             "org.springframework.security.core.AuthenticationException"
     );
 
+    /** 只识别明确的写入冲突；按继承链类名分类，避免 Web 服务强制依赖 spring-tx。 */
+    private static final Set<String> DATA_CONFLICT_TYPES = Set.of(
+            "org.springframework.dao.DuplicateKeyException",
+            "org.springframework.dao.PessimisticLockingFailureException",
+            "org.springframework.dao.OptimisticLockingFailureException"
+    );
+
     /**
      * 多条字段校验提示之间的分隔符。
      */
@@ -107,7 +114,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ChaosException.class)
     public ResponseEntity<Result<Void>> handleChaosException(ChaosException ex) {
-        HttpStatus status = resolveStatus(ex.errorCode().code());
+        HttpStatus status = resolveStatus(ex.errorCode());
         if (status.is5xxServerError()) {
             log.error("Server error: code={} diagnostic={}", ex.errorCode().code(), SafeExceptionDiagnostics.describe(ex));
             return ResponseEntity.status(status).body(failure(ex.errorCode()));
@@ -258,6 +265,11 @@ public class GlobalExceptionHandler {
         if (ex instanceof ErrorResponse errorResponse) {
             return handleErrorResponse(ex, errorResponse.getStatusCode());
         }
+        if (matchesExceptionType(ex, DATA_CONFLICT_TYPES)) {
+            // 不打印异常消息或 cause：其中可能包含 SQL、用户名、邮箱和绑定参数。
+            log.debug("Database write conflict: type={}", ex.getClass().getName());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(failure(CommonErrorCode.CONFLICT));
+        }
         log.error("Unhandled exception: {}", SafeExceptionDiagnostics.describe(ex));
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -284,6 +296,7 @@ public class GlobalExceptionHandler {
             case 403 -> CommonErrorCode.FORBIDDEN;
             case 404 -> CommonErrorCode.NOT_FOUND;
             case 405 -> CommonErrorCode.METHOD_NOT_ALLOWED;
+            case 409 -> CommonErrorCode.CONFLICT;
             case 415 -> CommonErrorCode.UNSUPPORTED_MEDIA_TYPE;
             case 429 -> CommonErrorCode.TOO_MANY_REQUESTS;
             case 503 -> CommonErrorCode.SERVICE_UNAVAILABLE;
@@ -335,8 +348,12 @@ public class GlobalExceptionHandler {
     }
 
     private static boolean isSecurityException(Throwable ex) {
+        return matchesExceptionType(ex, SECURITY_EXCEPTION_TYPES);
+    }
+
+    private static boolean matchesExceptionType(Throwable ex, Set<String> types) {
         for (Class<?> type = ex.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            if (SECURITY_EXCEPTION_TYPES.contains(type.getName())) {
+            if (types.contains(type.getName())) {
                 return true;
             }
         }
@@ -346,7 +363,23 @@ public class GlobalExceptionHandler {
     /**
      * 将业务错误码映射为 HTTP 状态码。
      */
-    private HttpStatus resolveStatus(String code) {
+    private HttpStatus resolveStatus(ErrorCode errorCode) {
+        // 内置码不走业务后缀推断：限流、方法错误、内部故障等必须保持各自的 HTTP 语义。
+        if (errorCode instanceof CommonErrorCode common) {
+            return switch (common) {
+                case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
+                case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+                case FORBIDDEN -> HttpStatus.FORBIDDEN;
+                case NOT_FOUND -> HttpStatus.NOT_FOUND;
+                case METHOD_NOT_ALLOWED -> HttpStatus.METHOD_NOT_ALLOWED;
+                case CONFLICT, IDEMPOTENT_REJECTED -> HttpStatus.CONFLICT;
+                case UNSUPPORTED_MEDIA_TYPE -> HttpStatus.UNSUPPORTED_MEDIA_TYPE;
+                case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
+                case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+                case INTERNAL_ERROR, SUCCESS -> HttpStatus.INTERNAL_SERVER_ERROR;
+            };
+        }
+        String code = errorCode.code();
         if (statusMapper != null) {
             HttpStatus mapped = statusMapper.resolve(code);
             if (mapped != null) {
@@ -368,13 +401,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 未内置的 4xx 状态码直接以状态码数字作为错误码。
+     * 其他标准 HTTP 状态使用枚举语义名；未命名状态共用兜底错误码，具体值由 HTTP 层表达。
      */
     private record HttpStatusErrorCode(HttpStatusCode statusCode) implements ErrorCode {
 
         @Override
         public String code() {
-            return String.valueOf(statusCode.value());
+            HttpStatus status = HttpStatus.resolve(statusCode.value());
+            return status == null ? "COMMON_HTTP_ERROR" : "COMMON_" + status.name();
         }
 
         @Override

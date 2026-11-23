@@ -28,6 +28,7 @@
 | `chaos.web.idempotent` | chaos-web | chaos-web-starter | `ttl`、`max-local-keys` | `5m`、`10000` | 请求失败（异常或 4xx/5xx）会释放幂等 key；TTL 过短可能无法覆盖慢请求重试窗口 |
 | `chaos.web.idempotent.replay` | chaos-web | chaos-web-starter | `enabled`、`max-body-size`、`stored-headers`、`max-local-records` | **`false`**、`64KB`、`Location`、`1000` | 开启后重复请求回放首次响应而不是 409；代价是写请求响应体多缓存一份、每个幂等请求多一次快照查询；集群必须配 Redis，内存快照在生产模式下会被阻断启动 |
 | `chaos.web.i18n` | chaos-web | chaos-web-starter | `enabled`、`default-locale` | `true`、空（按 `Accept-Language`） | 关闭后只用错误码默认消息；只提供单一语言的内部系统建议固定 `default-locale`，避免响应语言随客户端变化 |
+| `chaos.web.reactive` | chaos-web-reactive | chaos-cloud-reactive-starter | `enabled`、`response-wrap-enabled`、`trace-enabled`、`xss-enabled`、`rate-limit.*`、`idempotent.*` | `true`、`true`、`true`、`true`、100 req/s、10m | 面向 WebFlux 业务服务（在 Gateway 存在时自动让位）；生产环境无 `ReactiveStringRedisTemplate` 时会拦截内存限流与幂等实现 |
 | `chaos.audit.async` | chaos-autoconfigure | chaos-audit-starter | `enabled`、`queue-capacity` | **`false`**、`10000` | 配合 chaos-audit-jdbc 时强烈建议开启：同步模式下每次登录/权限拒绝都是请求线程内一次 DB 写入；队列满时丢弃并计指标，不阻塞业务 |
 | `chaos.mq.outbox.health` | chaos-autoconfigure | chaos-mq-starter | `enabled`、`pending-threshold`、`dead-letter-threshold` | `true`、`10000`、`100` | 超过阈值时 /actuator/health 转 DOWN；仓储不支持统计时为 UNKNOWN 而非 UP |
 | `chaos.service.retry` | chaos-autoconfigure | chaos-application-starter | `max-attempts`、`backoff-ms` | `3`、`100` | 业务异常不应重试 |
@@ -66,6 +67,7 @@
 | `chaos.gateway.opaque-token` | chaos-gateway | chaos-gateway-starter | `introspection-uri`、`client-id`、`client-secret`、`cache-ttl`、`cache-max-size`、`timeout` | 空、空、空、`30s`、`10000`、`3s` | 缓存 TTL 即撤销生效的最大延迟窗口；超时避免授权服务器变慢拖垮网关 |
 | `chaos.gateway.rate-limit` | chaos-gateway | chaos-gateway-starter | `enabled`、`fail-open`、`default-permits-per-second`、`max-local-keys`、`key-types`、`skip-paths`、`rules` | `false`、`true`、`100`、`10000`、`ROUTE,TENANT,USER,IP`、`/actuator/health` | 限流跳过路径与鉴权白名单相互独立，登录等白名单接口默认也会限流；fail-open 优先可用性、fail-closed 优先保护后端；本地 key 达到上限按 LRU 淘汰 |
 | `chaos.gateway.fallback` | chaos-gateway | chaos-gateway-starter | `enabled`、`include-unhandled` | `true`、`true` | 完全接管异常响应时可覆盖处理器 |
+| `chaos.gateway.resilience` | chaos-gateway | chaos-gateway-starter | `enabled`、`failure-rate-threshold-pct`、`sliding-window-size`、`minimum-number-of-calls`、`wait-duration-in-open-state`、`max-concurrent-calls`、`call-timeout`、`rules` | `true`、`50`、`20`、`10`、`15s`、`0`、空、空 | 按路由 ID 隔离 `5xx`/超时故障与并发舱壁，防止单个下游故障拖垮整个网关 |
 | `chaos.gateway.tenant` | chaos-gateway | chaos-gateway-starter | `enabled`、`fail-closed`、`header-name` | `true`、`true`、`X-Tenant-Id` | 已认证请求以 JWT 租户为准，与请求头不一致时 403；fail-closed=false 可能放行未知租户 |
 | `chaos.gateway.nacos-routes` | chaos-gateway-nacos | chaos-gateway-nacos-starter | `enabled`、`data-id`、`group`、`timeout-ms`、`fail-fast`、`clear-on-empty` | `false`、`chaos-gateway-routes.yaml`、`DEFAULT_GROUP`、`3000`、`false`、`false` | 默认保留上一次有效路由；生产建议发布前校验路由配置 |
 
@@ -78,7 +80,10 @@
 | `chaos.mybatis.data-scope` | chaos-mybatis | chaos-mybatis-starter | `enabled`、`empty-condition-behavior`、ignore 配置 | `true`、`DENY` | 不建议把空条件改成 IGNORE |
 | `chaos.mybatis.pagination` | chaos-mybatis | chaos-mybatis-starter | `max-limit`、`overflow` | `500`、`false` | 单页上限防止 `size` 过大导致全表扫描或数据批量导出 |
 | `chaos.mybatis.optimistic-lock` | chaos-mybatis | chaos-mybatis-starter | `enabled` | `true` | 需要实体字段标注 `@Version` 才生效 |
-| `chaos.redis` | chaos-autoconfigure | chaos-redis-starter | `key-prefix` | 空 | 多服务共用 Redis 时应设置为应用名；修改前缀后旧 key 失效（锁、延迟队列存量数据需评估）；JWT 黑名单不受前缀影响 |
+| `chaos.redis` | chaos-redis / chaos-autoconfigure | chaos-redis-starter | `key-prefix` | 空 | 多服务共用 Redis 时应设置为应用名；修改前缀后旧 key 失效（锁、延迟队列存量数据需评估）；JWT 黑名单不受前缀影响 |
+| `chaos.redis.two-level-cache` | chaos-redis / chaos-autoconfigure | chaos-redis-starter（按需加 `caffeine`） | `enabled`、`l1-max-size`、`l1-ttl`、`l2-ttl`、`cache-null-values`、`single-flight`、`broadcast-invalidation`、`invalidation-topic` | `false`、`10000`、`5m`、`30m`、`true`、`true`、`true`、`chaos:cache:invalidation` | 开启后装配 Caffeine L1 + Redis L2 `TwoLevelCacheManager` 与 `CacheAsideTemplate`，支持空值防穿透、单飞防击穿与 Redis Pub/Sub 跨实例 L1 广播失效 |
+| `chaos.cloud.feign` | chaos-http-client / chaos-autoconfigure | chaos-cloud-starter | `unwrap-result` | `true` | 自动解包下游统一 `Result<T>` 响应并翻译业务/远端错误码为 `BizException` |
+| `chaos.cloud.resilience` | chaos-core / chaos-http-client / chaos-autoconfigure | chaos-cloud-starter | `enabled`、`failure-rate-threshold-pct`、`sliding-window-size`、`minimum-number-of-calls`、`wait-duration-in-open-state`、`max-concurrent-calls`、`call-timeout` | `true`、`50`、`20`、`10`、`15s`、`0`、空 | 为 OpenFeign（按服务名）与 `ServiceHttpClients`（按目标主机）提供断路器、并发舱壁与虚拟线程超时预算保护 |
 | `chaos.mq.publisher` | chaos-autoconfigure | chaos-mq-starter | `send-timeout` | `10s` | 同步等待 broker 确认；超时视为发送失败并进入 outbox 重试 |
 | `chaos.mq.outbox` | chaos-mq-jdbc | chaos-mq-starter | `enabled`、`table-name`、`claim-timeout` | `true`、`chaos_mq_outbox`、`5m` | 多实例派发依赖 claim；SENDING 超时后允许重新抢占 |
 | `chaos.mq.outbox.dispatcher` | chaos-autoconfigure | chaos-mq-starter | `enabled`、`initial-delay`、`interval`、`batch-size`、`max-retry-times`、`retry-backoff` | `true`、`10s`、`1s`、`100`、`10`、`30s` | 超过最大重试次数进入 DEAD_LETTER |

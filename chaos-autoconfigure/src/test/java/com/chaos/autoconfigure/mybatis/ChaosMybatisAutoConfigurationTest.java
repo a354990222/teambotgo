@@ -250,7 +250,10 @@ class ChaosMybatisAutoConfigurationTest {
      */
     @Test
     void shouldRejectNoopDataScopeProviderInProductionMode() {
-        contextRunner.withPropertyValues("chaos.production-safety.production-mode=true")
+        contextRunner.withPropertyValues(
+                        "chaos.production-safety.production-mode=true",
+                        "chaos.mybatis.id-generator.worker-id=1",
+                        "chaos.mybatis.id-generator.datacenter-id=1")
                 .run(context -> {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure()).hasMessageContaining("NoopDataScopeProvider");
@@ -269,13 +272,15 @@ class ChaosMybatisAutoConfigurationTest {
     }
 
     /**
-     * 生产模式关闭数据权限时允许保留默认空提供者。
+     * 生产模式关闭数据权限并显式配置雪花节点后允许保留默认空提供者。
      */
     @Test
     void shouldAllowNoopDataScopeProviderWhenDataScopeIsDisabledInProductionMode() {
         contextRunner.withPropertyValues(
                         "chaos.production-safety.production-mode=true",
-                        "chaos.mybatis.data-scope.enabled=false"
+                        "chaos.mybatis.data-scope.enabled=false",
+                        "chaos.mybatis.id-generator.worker-id=1",
+                        "chaos.mybatis.id-generator.datacenter-id=1"
                 )
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -284,6 +289,20 @@ class ChaosMybatisAutoConfigurationTest {
                             .getDataScope()
                             .isEnabled())
                             .isFalse();
+                });
+    }
+
+    /**
+     * 生产模式未配置雪花节点号时默认阻断启动，避免多容器节点号碰撞。
+     */
+    @Test
+    void shouldRejectAutoAssignedSnowflakeIdGeneratorInProductionMode() {
+        contextRunner.withPropertyValues(
+                        "chaos.production-safety.production-mode=true",
+                        "chaos.mybatis.data-scope.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure()).hasMessageContaining("SnowflakeIdGenerator");
                 });
     }
 

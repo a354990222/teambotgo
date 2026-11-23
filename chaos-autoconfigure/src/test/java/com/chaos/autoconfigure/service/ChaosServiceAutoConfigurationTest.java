@@ -3,19 +3,26 @@ package com.chaos.autoconfigure.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.chaos.core.context.RequestContext;
 import com.chaos.core.exception.BizException;
 import com.chaos.core.exception.CommonErrorCode;
 import com.chaos.service.context.TraceContextTaskDecorator;
 import com.chaos.service.json.JsonUtils;
 import com.chaos.service.retry.RetryExecutor;
+import com.chaos.trace.TraceContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
+import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.TaskDecorator;
 
 /**
@@ -104,6 +111,38 @@ class ChaosServiceAutoConfigurationTest {
         contextRunner.withBean(ObjectMapper.class, () -> objectMapper)
                 .withBean(JsonUtils.class, () -> custom)
                 .run(context -> assertThat(context.getBean(JsonUtils.class)).isSameAs(custom));
+    }
+
+    /**
+     * 开启 spring.threads.virtual.enabled=true 时，Boot 装配的虚拟线程执行器应自动接入 TraceContextTaskDecorator。
+     */
+    @Test
+    void shouldWireTaskDecoratorIntoVirtualThreadTaskExecutor() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(
+                        ChaosServiceAutoConfiguration.class,
+                        TaskExecutionAutoConfiguration.class
+                ))
+                .withPropertyValues("spring.threads.virtual.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    AsyncTaskExecutor executor = context.getBean(AsyncTaskExecutor.class);
+                    TraceContext.start("auto-vt-trace", "auto-vt-span", "tenant-auto", "user-auto", "svc");
+                    AtomicBoolean virtual = new AtomicBoolean();
+                    AtomicReference<String> tenantId = new AtomicReference<>();
+                    try {
+                        CompletableFuture<Void> future = executor.submitCompletable(() -> {
+                            virtual.set(Thread.currentThread().isVirtual());
+                            tenantId.set(RequestContext.tenantId());
+                        });
+                        TraceContext.clear();
+                        future.join();
+                    } finally {
+                        TraceContext.clear();
+                    }
+                    assertThat(virtual).isTrue();
+                    assertThat(tenantId).hasValue("tenant-auto");
+                });
     }
 
     @Configuration(proxyBeanMethods = false)

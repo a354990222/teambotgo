@@ -3,6 +3,7 @@ package com.chaos.examples.order.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.chaos.domain.model.DomainException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class OrderTest {
     @Test
     void shouldRejectNonPositiveAmount() {
         assertThatThrownBy(() -> Order.create("A-002", "tenant-a", "10001", BigDecimal.ZERO))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(DomainException.class);
     }
 
     /**

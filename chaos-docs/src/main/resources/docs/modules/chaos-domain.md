@@ -10,7 +10,7 @@ DDD 聚合、领域事件、分页请求和分页结果等纯模型。源码目�
 
 | 包 | 类型 |
 | --- | --- |
-| `com.chaos.domain.model` | `AggregateRoot`、`DomainEvent` |
+| `com.chaos.domain.model` | `AggregateRoot`、`DomainEvent`、`DomainException` |
 | `com.chaos.domain.dto` | `PageQuery`、`PageResult` |
 | `com.chaos.domain.cache` | `CacheKeyStrategy`、`DefaultCacheKeyStrategy` |
 

@@ -80,7 +80,7 @@ public class OrderApplicationService {
 拆成两个自动装配类，是为了让 outbox 的 `@ConditionalOnBean` 能稳定看到基础设施 Bean。
 可选中间件相关的 Bean 放在带 `@ConditionalOnClass` 的嵌套配置里，classpath 缺少 Kafka 或 RocketMQ 时不会因方法签名反射失败。
 
-`chaos-mq-starter` 聚合 `chaos-autoconfigure`（mq）、`chaos-mq-jdbc`、`chaos-mq-kafka` 与 `chaos-mq-rocketmq`；
+`chaos-mq-starter` 聚合 `chaos-autoconfigure`（mq）、`chaos-mq-kafka` 与 `chaos-mq-rocketmq`；需要 JDBC outbox 持久化时再引入 `chaos-mq-jdbc-starter`；
 Kafka / RocketMQ 的 SDK 由业务按需引入。
 
 ## 配置

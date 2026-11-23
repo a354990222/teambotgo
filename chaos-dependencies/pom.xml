@@ -78,6 +78,7 @@
         <oauth2-oidc-sdk.version>11.23.1</oauth2-oidc-sdk.version>
         <poi.version>5.5.1</poi.version>
         <commons-io.version>2.21.0</commons-io.version>
+        <archunit.version>1.4.1</archunit.version>
 
         <flatten-maven-plugin.version>1.7.3</flatten-maven-plugin.version>
     </properties>
@@ -188,6 +189,11 @@
                 <artifactId>oauth2-oidc-sdk</artifactId>
                 <version>${oauth2-oidc-sdk.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+            </dependency>
             <!-- 基础库模块 -->
             <dependency>
                 <groupId>com.chaos</groupId>
@@ -268,12 +274,12 @@
             </dependency>
             <dependency>
                 <groupId>com.chaos</groupId>
-                <artifactId>chaos-http-client</artifactId>
+                <artifactId>chaos-web-reactive</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>com.chaos</groupId>
-                <artifactId>chaos-transaction</artifactId>
+                <artifactId>chaos-http-client</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
@@ -334,11 +340,6 @@
             <dependency>
                 <groupId>com.chaos</groupId>
                 <artifactId>chaos-storage</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chaos</groupId>
-                <artifactId>chaos-storage-document</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
@@ -438,6 +439,11 @@
             <dependency>
                 <groupId>com.chaos</groupId>
                 <artifactId>chaos-mq-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chaos</groupId>
+                <artifactId>chaos-mq-jdbc-starter</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>

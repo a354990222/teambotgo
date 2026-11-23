@@ -14,6 +14,7 @@ com.chaos.autoconfigure.mq.ChaosMqOutboxAutoConfiguration
 com.chaos.autoconfigure.mybatis.ChaosMybatisAutoConfiguration
 com.chaos.autoconfigure.process.ChaosProcessAutoConfiguration
 com.chaos.autoconfigure.redis.ChaosRedisAutoConfiguration
+com.chaos.autoconfigure.redis.ChaosRedisCacheAsideAutoConfiguration
 com.chaos.autoconfigure.security.ChaosSecurityAutoConfiguration
 com.chaos.autoconfigure.security.redis.ChaosSecurityRedisAutoConfiguration
 com.chaos.autoconfigure.service.ChaosServiceAutoConfiguration
@@ -21,3 +22,4 @@ com.chaos.autoconfigure.storage.ChaosStorageAutoConfiguration
 com.chaos.autoconfigure.tenant.ChaosTenantAutoConfiguration
 com.chaos.autoconfigure.time.ChaosTimeAutoConfiguration
 com.chaos.autoconfigure.web.ChaosWebAutoConfiguration
+com.chaos.autoconfigure.web.reactive.ChaosWebReactiveAutoConfiguration

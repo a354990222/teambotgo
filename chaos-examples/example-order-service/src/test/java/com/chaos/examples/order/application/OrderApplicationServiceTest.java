@@ -3,9 +3,10 @@ package com.chaos.examples.order.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.chaos.domain.dto.PageResult;
 import com.chaos.core.exception.BizException;
-import com.chaos.examples.order.application.query.OrderSummary;
+import com.chaos.domain.dto.PageResult;
+import com.chaos.examples.order.application.command.CreateOrderCommand;
+import com.chaos.examples.order.application.result.OrderResult;
 import com.chaos.examples.order.domain.Order;
 import com.chaos.examples.order.domain.OrderCreatedEvent;
 import com.chaos.mq.MessageEnvelope;
@@ -15,12 +16,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * 订单应用服务测试。
@@ -31,19 +32,22 @@ class OrderApplicationServiceTest {
 
     private final List<Order> saved = new ArrayList<>();
 
+    private final AtomicReference<LoginUser> currentUser = new AtomicReference<>();
+
     private final OrderApplicationService service = new OrderApplicationService(
             order -> {
                 order.markPersisted(100L, LocalDateTime.now());
                 saved.add(order);
                 return order;
             },
-            (current, size) -> new PageResult<>(List.of(), 0, current, size),
+            query -> new PageResult<>(List.of(), 0, query.current(), query.size()),
             outbox::add,
-            new DirectTransactionExecutor());
+            new DirectTransactionExecutor(),
+            () -> Optional.ofNullable(currentUser.get()));
 
     @AfterEach
-    void clearSecurityContext() {
-        SecurityContextHolder.clearContext();
+    void clearLoginUser() {
+        currentUser.set(null);
     }
 
     /**
@@ -51,10 +55,10 @@ class OrderApplicationServiceTest {
      */
     @Test
     void shouldUseAuthenticatedTenantAndWriteOutbox() {
-        authenticate("tenant-a");
+        currentUser.set(new LoginUser("10001", "alice", "tenant-a", Set.of("user"), Set.of("order:create")));
 
-        OrderSummary summary = service.createOrder(
-                new OrderApplicationService.CreateOrderCommand("A-100", "10001", new BigDecimal("9.90")));
+        OrderResult summary = service.createOrder(
+                new CreateOrderCommand("A-100", "10001", new BigDecimal("9.90")));
 
         assertThat(summary.id()).isEqualTo(100L);
         assertThat(summary.tenantId()).isEqualTo("tenant-a");
@@ -71,15 +75,9 @@ class OrderApplicationServiceTest {
     @Test
     void shouldRejectUnauthenticatedCreation() {
         assertThatThrownBy(() -> service.createOrder(
-                new OrderApplicationService.CreateOrderCommand("A-101", "10001", BigDecimal.ONE)))
+                new CreateOrderCommand("A-101", "10001", BigDecimal.ONE)))
                 .isInstanceOf(BizException.class);
         assertThat(outbox).isEmpty();
-    }
-
-    private static void authenticate(String tenantId) {
-        LoginUser user = new LoginUser("10001", "alice", tenantId, Set.of("user"), Set.of("order:create"));
-        SecurityContextHolder.getContext()
-                .setAuthentication(new UsernamePasswordAuthenticationToken(user, null, List.of()));
     }
 
     private static final class DirectTransactionExecutor implements TransactionExecutor {

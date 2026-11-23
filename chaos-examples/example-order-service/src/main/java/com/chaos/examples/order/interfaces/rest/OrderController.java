@@ -2,18 +2,18 @@ package com.chaos.examples.order.interfaces.rest;
 
 import com.chaos.domain.dto.PageResult;
 import com.chaos.examples.order.application.OrderApplicationService;
-import com.chaos.examples.order.application.query.OrderSummary;
+import com.chaos.examples.order.application.command.CreateOrderCommand;
+import com.chaos.examples.order.application.query.OrderPageQuery;
+import com.chaos.examples.order.application.result.OrderResult;
+import com.chaos.examples.order.interfaces.rest.request.CreateOrderRequest;
+import com.chaos.examples.order.interfaces.rest.response.OrderResponse;
 import com.chaos.security.annotation.AccessAttribute;
 import com.chaos.security.annotation.RequireAccess;
 import com.chaos.web.idempotent.Idempotent;
 import com.chaos.web.ratelimit.RateLimit;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.validation.annotation.Validated;
@@ -58,10 +58,11 @@ public class OrderController {
     @GetMapping
     @RateLimit(permitsPerSecond = 20)
     @RequireAccess(action = "order:read", resourceType = "order")
-    public PageResult<OrderSummary> pageOrders(
+    public PageResult<OrderResponse> pageOrders(
             @RequestParam(defaultValue = "1") @Positive long current,
             @RequestParam(defaultValue = "10") @Positive @Max(100) long size) {
-        return orderApplicationService.pageOrders(current, size);
+        return orderApplicationService.pageOrders(new OrderPageQuery(current, size))
+                .map(OrderResponse::from);
     }
 
     /**
@@ -80,25 +81,12 @@ public class OrderController {
                     @AccessAttribute(name = "amount", value = "#request.amount"),
                     @AccessAttribute(name = "buyerId", value = "#request.buyerId")
             })
-    public OrderSummary createOrder(@Valid @RequestBody CreateOrderRequest request) {
-        return orderApplicationService.createOrder(new OrderApplicationService.CreateOrderCommand(
+    public OrderResponse createOrder(@Valid @RequestBody CreateOrderRequest request) {
+        OrderResult result = orderApplicationService.createOrder(new CreateOrderCommand(
                 request.orderNo(),
                 request.buyerId(),
                 request.amount()
         ));
-    }
-
-    /**
-     * 创建订单请求。
-     *
-     * @param orderNo 订单编号
-     * @param buyerId 买家 ID
-     * @param amount 订单金额
-     */
-    public record CreateOrderRequest(
-            @NotBlank(message = "订单编号不能为空") String orderNo,
-            @NotBlank(message = "买家 ID 不能为空") String buyerId,
-            @NotNull(message = "订单金额不能为空") @DecimalMin(value = "0.01", message = "订单金额必须大于 0") BigDecimal amount
-    ) {
+        return OrderResponse.from(result);
     }
 }

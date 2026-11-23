@@ -12,6 +12,10 @@
     <artifactId>chaos-audit-jdbc</artifactId>
     <name>chaos-audit-jdbc</name>
     <description>JDBC adapter for persisting audit events.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>

@@ -12,6 +12,10 @@
     <artifactId>chaos-mq-jdbc</artifactId>
     <name>chaos-mq-jdbc</name>
     <description>JDBC outbox adapter for chaos reliable MQ contracts.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>

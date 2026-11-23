@@ -13,6 +13,7 @@ import com.chaos.gateway.filter.GatewayAccessLogFilter;
 import com.chaos.gateway.filter.GatewayDownstreamTimingFilter;
 import com.chaos.gateway.filter.GatewayFallbackExceptionHandler;
 import com.chaos.gateway.filter.GatewayRateLimitFilter;
+import com.chaos.gateway.filter.GatewayResilienceFilter;
 import com.chaos.gateway.filter.GatewayTraceFilter;
 import com.chaos.gateway.filter.JwtAuthenticationGatewayFilter;
 import com.chaos.gateway.filter.OAuth2ClientAuthenticationGatewayFilterFactory;
@@ -254,7 +255,7 @@ class ChaosGatewayAutoConfigurationTest {
     void whitelistShouldOnlyExposeHealthByDefault() {
         contextRunner.run(context -> {
             ChaosGatewayProperties properties = context.getBean(ChaosGatewayProperties.class);
-            assertThat(properties.getWhitelist()).containsExactly("/actuator/health");
+            assertThat(properties.getWhitelist()).containsExactly("/actuator/health/**");
             assertThat(properties.getToken().getType()).isEqualTo(ChaosGatewayProperties.TokenType.JWT);
             assertThat(properties.getRateLimit().getKeyTypes()).containsExactly(
                     ChaosGatewayProperties.KeyType.ROUTE,
@@ -390,6 +391,17 @@ class ChaosGatewayAutoConfigurationTest {
                         AuthorizationRequest.of(new AccessSubject(
                                 "1001", "alice", "tenant-a", Set.of("admin"), Set.of(), Map.of()),
                                 "order:read")).policyId()).isEqualTo("dynamic-deny"));
+    }
+
+    @Test
+    void shouldRegisterGatewayResilienceFilterByDefaultAndAllowDisabling() {
+        contextRunner.withPropertyValues(
+                        "chaos.gateway.resilience.max-concurrent-calls=50",
+                        "chaos.gateway.resilience.rules.orders.failure-rate-threshold-pct=60")
+                .run(context -> assertThat(context).hasSingleBean(GatewayResilienceFilter.class));
+
+        contextRunner.withPropertyValues("chaos.gateway.resilience.enabled=false")
+                .run(context -> assertThat(context).doesNotHaveBean(GatewayResilienceFilter.class));
     }
 
 }

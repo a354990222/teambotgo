@@ -1,9 +1,11 @@
 package com.chaos.gateway.config;
 
+import com.chaos.core.resilience.ResiliencePolicy;
 import com.chaos.security.api.access.AccessPolicyProperties;
 import com.chaos.security.api.access.PolicyCombiningAlgorithm;
 import com.chaos.security.api.access.PolicyDefinition;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -35,7 +37,7 @@ public class ChaosGatewayProperties {
     /**
      * 鉴权白名单路径。
      */
-    private List<String> whitelist = new ArrayList<>(List.of("/actuator/health"));
+    private List<String> whitelist = new ArrayList<>(List.of("/actuator/health/**"));
 
     /**
      * IP 黑名单。
@@ -124,8 +126,17 @@ public class ChaosGatewayProperties {
     private Fallback fallback = new Fallback();
 
     /**
+     * 路由级熔断、并发舱壁与超时预算配置。
+     */
+    @Valid
+    @NotNull(message = "chaos.gateway.resilience must not be null")
+    private Resilience resilience = new Resilience();
+
+    /**
      * 网关粗粒度鉴权（RBAC/ABAC）配置。
      */
+    @Valid
+    @NotNull(message = "chaos.gateway.access must not be null")
     private Access access = new Access();
 
     /**
@@ -261,6 +272,14 @@ public class ChaosGatewayProperties {
 
     public void setFallback(Fallback fallback) {
         this.fallback = fallback == null ? new Fallback() : fallback;
+    }
+
+    public Resilience getResilience() {
+        return resilience;
+    }
+
+    public void setResilience(Resilience resilience) {
+        this.resilience = resilience == null ? new Resilience() : resilience;
     }
 
     public boolean isRequestTimingEnabled() {
@@ -815,7 +834,7 @@ public class ChaosGatewayProperties {
          * <p>与鉴权白名单相互独立：登录、验证码等接口通常在鉴权白名单中，但恰恰最需要限流。</p>
          */
         @NotNull(message = "chaos.gateway.rate-limit.skip-paths must not be null")
-        private List<String> skipPaths = new ArrayList<>(List.of("/actuator/health"));
+        private List<String> skipPaths = new ArrayList<>(List.of("/actuator/health/**"));
 
         public List<String> getSkipPaths() {
             return skipPaths;
@@ -1004,6 +1023,262 @@ public class ChaosGatewayProperties {
 
         public void setIncludeUnhandled(boolean includeUnhandled) {
             this.includeUnhandled = includeUnhandled;
+        }
+    }
+
+    /**
+     * Gateway 路由级熔断、并发舱壁与超时预算配置。
+     */
+    public static class Resilience {
+
+        /**
+         * 是否启用 Gateway 路由级断路器、并发舱壁与超时保护，默认开启。
+         */
+        private boolean enabled = true;
+
+        /**
+         * 触发断路器打开的失败率百分比阈值（1..100）。
+         */
+        @Min(value = 1, message = "chaos.gateway.resilience.failure-rate-threshold-pct must be >= 1")
+        @Max(value = 100, message = "chaos.gateway.resilience.failure-rate-threshold-pct must be <= 100")
+        private int failureRateThresholdPct = 50;
+
+        /**
+         * 滑动统计窗口大小（按最近请求数统计）。
+         */
+        @Min(value = 1, message = "chaos.gateway.resilience.sliding-window-size must be >= 1")
+        private int slidingWindowSize = 20;
+
+        /**
+         * 触发失败率计算前至少需要的调用次数。
+         */
+        @Min(value = 1, message = "chaos.gateway.resilience.minimum-number-of-calls must be >= 1")
+        private int minimumNumberOfCalls = 10;
+
+        /**
+         * 断路器处于 OPEN 状态后的冷却等待时间。
+         */
+        @NotNull(message = "chaos.gateway.resilience.wait-duration-in-open-state must not be null")
+        private Duration waitDurationInOpenState = Duration.ofSeconds(15);
+
+        /**
+         * 半开探测期允许放行的请求数。
+         */
+        @Min(value = 1, message = "chaos.gateway.resilience.permitted-number-of-calls-in-half-open-state must be >= 1")
+        private int permittedNumberOfCallsInHalfOpenState = 5;
+
+        /**
+         * 单路由最大并发在途请求数；0 表示不限制并发。
+         */
+        @Min(value = 0, message = "chaos.gateway.resilience.max-concurrent-calls must be >= 0")
+        private int maxConcurrentCalls = 0;
+
+        /**
+         * 路由转发超时预算；留空表示沿用网关全局或路由 HTTPClient 超时设置。
+         */
+        private Duration callTimeout;
+
+        /**
+         * 按路由 ID（如 {@code example-order-service}）覆盖默认熔断、舱壁与超时预算策略。
+         */
+        @Valid
+        @NotNull(message = "chaos.gateway.resilience.rules must not be null")
+        private Map<String, RouteResilienceRule> rules = new LinkedHashMap<>();
+
+        /**
+         * 转换为内核默认弹性策略。
+         */
+        public ResiliencePolicy toDefaultPolicy() {
+            return new ResiliencePolicy(
+                    failureRateThresholdPct,
+                    slidingWindowSize,
+                    minimumNumberOfCalls,
+                    waitDurationInOpenState,
+                    permittedNumberOfCallsInHalfOpenState,
+                    maxConcurrentCalls,
+                    callTimeout);
+        }
+
+        /**
+         * 将按路由 ID 配置的覆盖规则转为策略映射。
+         */
+        public Map<String, ResiliencePolicy> toPolicyOverrides() {
+            Map<String, ResiliencePolicy> result = new LinkedHashMap<>();
+            rules.forEach((routeId, rule) -> {
+                if (routeId != null && !routeId.isBlank() && rule != null) {
+                    result.put(routeId, rule.toPolicy(this));
+                }
+            });
+            return result;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getFailureRateThresholdPct() {
+            return failureRateThresholdPct;
+        }
+
+        public void setFailureRateThresholdPct(int failureRateThresholdPct) {
+            this.failureRateThresholdPct = failureRateThresholdPct;
+        }
+
+        public int getSlidingWindowSize() {
+            return slidingWindowSize;
+        }
+
+        public void setSlidingWindowSize(int slidingWindowSize) {
+            this.slidingWindowSize = slidingWindowSize;
+        }
+
+        public int getMinimumNumberOfCalls() {
+            return minimumNumberOfCalls;
+        }
+
+        public void setMinimumNumberOfCalls(int minimumNumberOfCalls) {
+            this.minimumNumberOfCalls = minimumNumberOfCalls;
+        }
+
+        public Duration getWaitDurationInOpenState() {
+            return waitDurationInOpenState;
+        }
+
+        public void setWaitDurationInOpenState(Duration waitDurationInOpenState) {
+            this.waitDurationInOpenState = waitDurationInOpenState == null
+                    ? Duration.ofSeconds(15)
+                    : waitDurationInOpenState;
+        }
+
+        public int getPermittedNumberOfCallsInHalfOpenState() {
+            return permittedNumberOfCallsInHalfOpenState;
+        }
+
+        public void setPermittedNumberOfCallsInHalfOpenState(int permittedNumberOfCallsInHalfOpenState) {
+            this.permittedNumberOfCallsInHalfOpenState = permittedNumberOfCallsInHalfOpenState;
+        }
+
+        public int getMaxConcurrentCalls() {
+            return maxConcurrentCalls;
+        }
+
+        public void setMaxConcurrentCalls(int maxConcurrentCalls) {
+            this.maxConcurrentCalls = maxConcurrentCalls;
+        }
+
+        public Duration getCallTimeout() {
+            return callTimeout;
+        }
+
+        public void setCallTimeout(Duration callTimeout) {
+            this.callTimeout = callTimeout;
+        }
+
+        public Map<String, RouteResilienceRule> getRules() {
+            return rules;
+        }
+
+        public void setRules(Map<String, RouteResilienceRule> rules) {
+            this.rules = rules == null ? new LinkedHashMap<>() : rules;
+        }
+    }
+
+    /**
+     * 按路由覆盖熔断、并发舱壁与超时预算配置。未显式指定的字段继承全局 {@code chaos.gateway.resilience} 默认值。
+     */
+    public static class RouteResilienceRule {
+
+        @Min(value = 1, message = "chaos.gateway.resilience.rules.failure-rate-threshold-pct must be >= 1")
+        @Max(value = 100, message = "chaos.gateway.resilience.rules.failure-rate-threshold-pct must be <= 100")
+        private Integer failureRateThresholdPct;
+
+        @Min(value = 1, message = "chaos.gateway.resilience.rules.sliding-window-size must be >= 1")
+        private Integer slidingWindowSize;
+
+        @Min(value = 1, message = "chaos.gateway.resilience.rules.minimum-number-of-calls must be >= 1")
+        private Integer minimumNumberOfCalls;
+
+        private Duration waitDurationInOpenState;
+
+        @Min(value = 1, message = "chaos.gateway.resilience.rules.permitted-number-of-calls-in-half-open-state must be >= 1")
+        private Integer permittedNumberOfCallsInHalfOpenState;
+
+        @Min(value = 0, message = "chaos.gateway.resilience.rules.max-concurrent-calls must be >= 0")
+        private Integer maxConcurrentCalls;
+
+        private Duration callTimeout;
+
+        ResiliencePolicy toPolicy(Resilience defaults) {
+            return new ResiliencePolicy(
+                    failureRateThresholdPct != null ? failureRateThresholdPct : defaults.getFailureRateThresholdPct(),
+                    slidingWindowSize != null ? slidingWindowSize : defaults.getSlidingWindowSize(),
+                    minimumNumberOfCalls != null ? minimumNumberOfCalls : defaults.getMinimumNumberOfCalls(),
+                    waitDurationInOpenState != null ? waitDurationInOpenState : defaults.getWaitDurationInOpenState(),
+                    permittedNumberOfCallsInHalfOpenState != null
+                            ? permittedNumberOfCallsInHalfOpenState
+                            : defaults.getPermittedNumberOfCallsInHalfOpenState(),
+                    maxConcurrentCalls != null ? maxConcurrentCalls : defaults.getMaxConcurrentCalls(),
+                    callTimeout != null ? callTimeout : defaults.getCallTimeout());
+        }
+
+        public Integer getFailureRateThresholdPct() {
+            return failureRateThresholdPct;
+        }
+
+        public void setFailureRateThresholdPct(Integer failureRateThresholdPct) {
+            this.failureRateThresholdPct = failureRateThresholdPct;
+        }
+
+        public Integer getSlidingWindowSize() {
+            return slidingWindowSize;
+        }
+
+        public void setSlidingWindowSize(Integer slidingWindowSize) {
+            this.slidingWindowSize = slidingWindowSize;
+        }
+
+        public Integer getMinimumNumberOfCalls() {
+            return minimumNumberOfCalls;
+        }
+
+        public void setMinimumNumberOfCalls(Integer minimumNumberOfCalls) {
+            this.minimumNumberOfCalls = minimumNumberOfCalls;
+        }
+
+        public Duration getWaitDurationInOpenState() {
+            return waitDurationInOpenState;
+        }
+
+        public void setWaitDurationInOpenState(Duration waitDurationInOpenState) {
+            this.waitDurationInOpenState = waitDurationInOpenState;
+        }
+
+        public Integer getPermittedNumberOfCallsInHalfOpenState() {
+            return permittedNumberOfCallsInHalfOpenState;
+        }
+
+        public void setPermittedNumberOfCallsInHalfOpenState(Integer permittedNumberOfCallsInHalfOpenState) {
+            this.permittedNumberOfCallsInHalfOpenState = permittedNumberOfCallsInHalfOpenState;
+        }
+
+        public Integer getMaxConcurrentCalls() {
+            return maxConcurrentCalls;
+        }
+
+        public void setMaxConcurrentCalls(Integer maxConcurrentCalls) {
+            this.maxConcurrentCalls = maxConcurrentCalls;
+        }
+
+        public Duration getCallTimeout() {
+            return callTimeout;
+        }
+
+        public void setCallTimeout(Duration callTimeout) {
+            this.callTimeout = callTimeout;
         }
     }
 

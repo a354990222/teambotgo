@@ -304,7 +304,19 @@ public class ChaosWebProperties {
         private boolean enabled = true;
 
         /**
-         * 默认每秒许可数，未在 {@code @RateLimit} 指定时生效。
+         * 限流生效模式：ANNOTATION_ONLY 只对标注 {@code @RateLimit} 的方法/类限流；GLOBAL 对所有未排除路径应用默认阈值。
+         */
+        @NotNull(message = "chaos.web.rate-limit.mode must not be null")
+        private RateLimitMode mode = RateLimitMode.ANNOTATION_ONLY;
+
+        /**
+         * 不参与 Web 限流拦截的路径模式（Ant 风格），例如健康检查、OpenAPI 与错误页。
+         */
+        private List<String> excludePaths = new ArrayList<>(List.of(
+                "/actuator/**", "/v3/api-docs/**", "/swagger-ui/**", "/error"));
+
+        /**
+         * 默认每秒许可数，在 {@code @RateLimit} 未指定阈值或 {@code mode=GLOBAL} 时生效。
          */
         @Min(value = 1, message = "chaos.web.rate-limit.default-permits-per-second must be positive")
         private int defaultPermitsPerSecond = 100;
@@ -321,6 +333,22 @@ public class ChaosWebProperties {
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public RateLimitMode getMode() {
+            return mode;
+        }
+
+        public void setMode(RateLimitMode mode) {
+            this.mode = mode == null ? RateLimitMode.ANNOTATION_ONLY : mode;
+        }
+
+        public List<String> getExcludePaths() {
+            return excludePaths;
+        }
+
+        public void setExcludePaths(List<String> excludePaths) {
+            this.excludePaths = excludePaths == null ? new ArrayList<>() : excludePaths;
         }
 
         public int getDefaultPermitsPerSecond() {
@@ -454,5 +482,19 @@ public class ChaosWebProperties {
         public void setMaxLocalRecords(int maxLocalRecords) {
             this.maxLocalRecords = maxLocalRecords;
         }
+    }
+
+    /**
+     * Web 限流拦截模式。
+     */
+    public enum RateLimitMode {
+        /**
+         * 仅对标注 {@code @RateLimit} 的方法或类执行限流。
+         */
+        ANNOTATION_ONLY,
+        /**
+         * 对所有未在 exclude-paths 中的接口按默认阈值执行限流。
+         */
+        GLOBAL
     }
 }

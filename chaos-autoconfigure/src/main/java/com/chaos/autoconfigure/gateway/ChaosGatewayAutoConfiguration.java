@@ -11,6 +11,7 @@ import com.chaos.core.diagnostic.ChaosDiagnosticException;
 import com.chaos.core.metrics.ChaosMetrics;
 import com.chaos.core.ratelimit.RateLimiter;
 import com.chaos.core.ratelimit.support.InMemoryRateLimiter;
+import com.chaos.core.resilience.ResilienceRegistry;
 import com.chaos.gateway.config.ChaosGatewayProperties;
 import com.chaos.gateway.filter.AccessControlGatewayFilter;
 import com.chaos.gateway.filter.BlacklistFilter;
@@ -20,6 +21,7 @@ import com.chaos.gateway.filter.GatewayFallbackExceptionHandler;
 import com.chaos.gateway.filter.GatewayIdentityMdcFilter;
 import com.chaos.gateway.filter.GatewayRateLimitFilter;
 import com.chaos.gateway.filter.GatewayRequestSanitizeFilter;
+import com.chaos.gateway.filter.GatewayResilienceFilter;
 import com.chaos.gateway.filter.GatewayTraceFilter;
 import com.chaos.gateway.filter.GrayTagFilter;
 import com.chaos.gateway.filter.JwtAuthenticationGatewayFilter;
@@ -556,6 +558,24 @@ public class ChaosGatewayAutoConfiguration {
     @ConditionalOnProperty(prefix = "chaos.gateway", name = "request-timing-enabled", havingValue = "true", matchIfMissing = true)
     public GatewayDownstreamTimingFilter gatewayDownstreamTimingFilter() {
         return new GatewayDownstreamTimingFilter();
+    }
+
+    /**
+     * 注册 Gateway 路由级断路器、并发舱壁与超时预算过滤器。
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chaos.gateway.resilience", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public GatewayResilienceFilter gatewayResilienceFilter(
+            ChaosGatewayProperties properties,
+            ObjectProvider<ChaosMetrics> metricsProvider) {
+        ChaosGatewayProperties.Resilience resilience = properties.getResilience();
+        ResilienceRegistry registry = new ResilienceRegistry(
+                "gateway",
+                resilience.toDefaultPolicy(),
+                resilience.toPolicyOverrides(),
+                metricsProvider.getIfAvailable());
+        return new GatewayResilienceFilter(registry);
     }
 
     /**

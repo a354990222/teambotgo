@@ -12,6 +12,10 @@
     <artifactId>chaos-job</artifactId>
     <name>chaos-job</name>
     <description>Job scheduling contracts and execution observability conventions.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>

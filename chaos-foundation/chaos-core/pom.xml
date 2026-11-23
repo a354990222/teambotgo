@@ -12,6 +12,10 @@
     <artifactId>chaos-core</artifactId>
     <name>chaos-core</name>
     <description>Minimal core abstractions, constants, context and exception model.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

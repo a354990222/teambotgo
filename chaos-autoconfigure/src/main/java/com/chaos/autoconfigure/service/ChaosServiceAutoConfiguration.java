@@ -11,6 +11,7 @@ import com.chaos.service.retry.RetryExecutor;
 import com.chaos.service.retry.SpringRetryExecutor;
 import com.chaos.service.transaction.SpringTransactionExecutor;
 import com.chaos.service.transaction.TransactionExecutor;
+import com.chaos.service.transaction.TransactionalSideEffects;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.context.ContextRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -83,6 +84,15 @@ public class ChaosServiceAutoConfiguration {
         @ConditionalOnMissingBean
         TransactionExecutor transactionExecutor(PlatformTransactionManager transactionManager) {
             return new SpringTransactionExecutor(new TransactionTemplate(transactionManager));
+        }
+
+        /**
+         * 注册事务提交后/回滚后副作用登记器。
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        TransactionalSideEffects transactionalSideEffects() {
+            return new TransactionalSideEffects();
         }
     }
 

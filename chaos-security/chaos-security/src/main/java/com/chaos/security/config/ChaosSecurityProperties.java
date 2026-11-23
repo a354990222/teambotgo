@@ -26,7 +26,7 @@ public class ChaosSecurityProperties {
     /**
      * 允许匿名访问的路径列表。
      */
-    private String[] permitAll = {"/actuator/health"};
+    private String[] permitAll = {"/actuator/health/**"};
 
     /**
      * JWT 配置。

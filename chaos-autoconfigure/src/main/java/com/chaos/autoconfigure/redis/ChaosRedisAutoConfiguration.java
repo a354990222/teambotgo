@@ -10,6 +10,8 @@ import com.chaos.core.idempotent.IdempotentRepository;
 import com.chaos.core.lock.DistributedLock;
 import com.chaos.core.ratelimit.RateLimiter;
 import com.chaos.redis.bloom.BloomFilterTemplate;
+import com.chaos.redis.cache.RedisTwoLevelCacheInvalidationBridge;
+import com.chaos.redis.cache.TwoLevelCacheManager;
 import com.chaos.redis.delay.DelayQueueTemplate;
 import com.chaos.redis.idempotent.RedissonIdempotentRecordStore;
 import com.chaos.redis.idempotent.RedissonIdempotentRepository;
@@ -19,13 +21,24 @@ import com.chaos.redis.lock.RedissonDistributedLock;
 import com.chaos.redis.lua.LuaScriptExecutor;
 import com.chaos.redis.ratelimit.RedissonRateLimiter;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.cache.RedisCacheManagerBuilderCustomizer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.CacheKeyPrefix;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 
 /**
  * Redis starter 自动装配。
@@ -34,8 +47,12 @@ import org.springframework.context.annotation.Bean;
  * JWT 黑名单等安全领域的 Redis 实现不在这里装配，见 {@link ChaosSecurityRedisAutoConfiguration}。</p>
  */
 @AutoConfiguration(
-        afterName = "org.redisson.spring.starter.RedissonAutoConfigurationV2",
+        afterName = {
+                "org.redisson.spring.starter.RedissonAutoConfigurationV2",
+                "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration"
+        },
         beforeName = {
+                "org.springframework.boot.autoconfigure.cache.CacheAutoConfiguration",
                 "com.chaos.autoconfigure.web.ChaosWebAutoConfiguration",
                 "com.chaos.autoconfigure.gateway.ChaosGatewayAutoConfiguration"
         })
@@ -143,5 +160,119 @@ public class ChaosRedisAutoConfiguration {
     @ConditionalOnMissingBean
     public LuaScriptExecutor luaScriptExecutor(RedissonClient redissonClient) {
         return new LuaScriptExecutor(redissonClient);
+    }
+
+    /**
+     * 将 {@code chaos.redis.key-prefix} 同步应用到 Spring Cache {@link RedisCacheManager} 默认前缀。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({
+            CacheManager.class,
+            RedisCacheManager.class,
+            RedisCacheManagerBuilderCustomizer.class,
+            org.springframework.data.redis.cache.RedisCacheConfiguration.class
+    })
+    static class RedisCachePrefixConfiguration {
+
+        @Bean(name = "chaosRedisCachePrefixCustomizer")
+        @ConditionalOnMissingBean(name = "chaosRedisCachePrefixCustomizer")
+        public RedisCacheManagerBuilderCustomizer chaosRedisCachePrefixCustomizer(RedisKeyPrefix redisKeyPrefix) {
+            return builder -> {
+                String prefix = redisKeyPrefix.value();
+                if (prefix.isEmpty()) {
+                    return;
+                }
+                org.springframework.data.redis.cache.RedisCacheConfiguration defaults = builder.cacheDefaults();
+                if (defaults == null || !defaults.usePrefix()) {
+                    return;
+                }
+                CacheKeyPrefix delegate = defaults.getKeyPrefix();
+                builder.cacheDefaults(defaults.computePrefixWith(cacheName -> {
+                    String base = delegate.compute(cacheName);
+                    return base.startsWith(prefix) ? base : prefix + base;
+                }));
+            };
+        }
+    }
+
+    /**
+     * 启用 {@code chaos.redis.two-level-cache.enabled=true} 且存在 Caffeine 时装配两级缓存管理器。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({
+            CacheManager.class,
+            com.github.benmanes.caffeine.cache.Caffeine.class,
+            RedisCacheManager.class,
+            RedisConnectionFactory.class,
+            org.springframework.data.redis.cache.RedisCacheConfiguration.class,
+            TwoLevelCacheManager.class
+    })
+    @ConditionalOnProperty(prefix = "chaos.redis.two-level-cache", name = "enabled", havingValue = "true")
+    static class TwoLevelCacheConfiguration {
+
+        @Bean
+        @ConditionalOnBean(RedisConnectionFactory.class)
+        @ConditionalOnMissingBean(CacheManager.class)
+        public TwoLevelCacheManager cacheManager(
+                RedisConnectionFactory connectionFactory,
+                RedisKeyPrefix redisKeyPrefix,
+                ChaosRedisProperties properties) {
+            ChaosRedisProperties.TwoLevelCache twoLevel = properties.getTwoLevelCache();
+            org.springframework.data.redis.cache.RedisCacheConfiguration redisConfig =
+                    org.springframework.data.redis.cache.RedisCacheConfiguration.defaultCacheConfig()
+                            .entryTtl(twoLevel.getL2Ttl());
+            if (!twoLevel.isCacheNullValues()) {
+                redisConfig = redisConfig.disableCachingNullValues();
+            }
+            String prefix = redisKeyPrefix.value();
+            if (!prefix.isEmpty()) {
+                CacheKeyPrefix base = redisConfig.getKeyPrefix();
+                redisConfig = redisConfig.computePrefixWith(cacheName -> prefix + base.compute(cacheName));
+            }
+            RedisCacheManager l2 = RedisCacheManager.builder(connectionFactory)
+                    .cacheDefaults(redisConfig)
+                    .build();
+            l2.initializeCaches();
+            return new TwoLevelCacheManager(
+                    l2,
+                    twoLevel.getL1MaxSize(),
+                    twoLevel.getL1Ttl(),
+                    twoLevel.isCacheNullValues(),
+                    twoLevel.isSingleFlight());
+        }
+
+        /**
+         * 为两级缓存配置跨实例 Redis Pub/Sub 主动失效同步，降低多实例场景下的 L1 本地缓存陈旧窗口。
+         */
+        @Bean(name = "chaosTwoLevelCacheInvalidationListenerContainer")
+        @ConditionalOnBean({TwoLevelCacheManager.class, RedisConnectionFactory.class})
+        @ConditionalOnClass({StringRedisTemplate.class, RedisMessageListenerContainer.class, ChannelTopic.class})
+        @ConditionalOnProperty(
+                prefix = "chaos.redis.two-level-cache",
+                name = "broadcast-invalidation",
+                havingValue = "true",
+                matchIfMissing = true)
+        @ConditionalOnMissingBean(name = "chaosTwoLevelCacheInvalidationListenerContainer")
+        public RedisMessageListenerContainer chaosTwoLevelCacheInvalidationListenerContainer(
+                RedisConnectionFactory connectionFactory,
+                ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider,
+                TwoLevelCacheManager twoLevelCacheManager,
+                RedisKeyPrefix redisKeyPrefix,
+                ChaosRedisProperties properties) {
+            StringRedisTemplate template = stringRedisTemplateProvider.getIfAvailable(() -> {
+                StringRedisTemplate created = new StringRedisTemplate(connectionFactory);
+                created.afterPropertiesSet();
+                return created;
+            });
+            String rawTopic = properties.getTwoLevelCache().getInvalidationTopic();
+            String resolvedTopic = redisKeyPrefix.apply(rawTopic);
+            RedisTwoLevelCacheInvalidationBridge bridge = new RedisTwoLevelCacheInvalidationBridge(
+                    template, resolvedTopic, twoLevelCacheManager::handleInvalidation);
+            twoLevelCacheManager.setInvalidator(bridge);
+            RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+            container.setConnectionFactory(connectionFactory);
+            container.addMessageListener(bridge, ChannelTopic.of(resolvedTopic));
+            return container;
+        }
     }
 }

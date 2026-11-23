@@ -166,17 +166,20 @@ BOM 不包含：`chaos-architecture-tests`（仓库内部架构测试，不发�
 | `chaos-security-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（security）、OAuth2 Resource Server、AOP、Validation | 资源服务器和 RBAC |
 | `chaos-authorization-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（authorization）、Web、Security、Authorization Server、Data Redis、Validation | OAuth2 授权服务器 |
 | `chaos-application-starter` | `chaos-autoconfigure`（service）、Cache、AOP、Retry、Prometheus | 应用层能力（事务、重试、领域事件、上下文传播）；1.0.0 前名为 `chaos-service-starter` |
-| `chaos-cloud-starter` | `chaos-autoconfigure`（cloud）、OpenFeign、LoadBalancer、Validation | Servlet 服务间 Feign 调用 |
-| `chaos-cloud-reactive-starter` | `chaos-autoconfigure`（cloud）、LoadBalancer、Actuator、Validation | 响应式服务，不带 OpenFeign |
+| `chaos-cloud-starter` | `chaos-autoconfigure`（cloud）、`chaos-trace`、`chaos-http-client`、OpenFeign、LoadBalancer、Validation | Servlet 服务间 HTTP 与 Feign 调用 |
+| `chaos-cloud-reactive-starter` | `chaos-autoconfigure`（cloud / web-reactive）、`chaos-web-reactive`、`chaos-trace`、WebFlux、LoadBalancer、Actuator、Validation | 响应式 WebFlux 业务服务，不带 OpenFeign（与 Gateway 互斥自动让位） |
 | `chaos-cloud-nacos-starter` | `chaos-autoconfigure`（cloud-nacos）、Nacos Discovery、Nacos Config | Nacos 注册与配置约定 |
 | `chaos-gateway-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（gateway）、Spring Cloud Gateway、Resource Server、oauth2-oidc-sdk、Actuator、Prometheus、Validation | API Gateway（同时是网关场景 starter） |
 | `chaos-gateway-nacos-starter` | `chaos-gateway-starter`、`chaos-autoconfigure`（gateway-nacos）、Nacos Config、Validation | Gateway 动态路由 |
 | `chaos-job-starter` | `chaos-autoconfigure`（job）、Spring Boot Starter | 定时任务服务（不再强制带入 Actuator） |
 | `chaos-process-starter` | `chaos-autoconfigure`（process）、`chaos-process`、Spring Boot Starter | 状态机与流程引擎；内存实现仅用于开发和测试 |
+| `chaos-process-jdbc-starter` | `chaos-autoconfigure`（process）、`chaos-process-jdbc`、Spring JDBC | JDBC 持久化流程引擎 |
+| `chaos-process-redis-starter` | `chaos-autoconfigure`（process）、`chaos-process-redis`、Spring Data Redis | Redis Lua CAS 持久化流程引擎 |
 | `chaos-tenant-starter` | `chaos-autoconfigure`（tenant）、Validation | 租户治理 |
-| `chaos-redis-starter` | `chaos-autoconfigure`（redis）、Redisson | Redis 基础设施能力 |
-| `chaos-mybatis-starter` | `chaos-autoconfigure`（mybatis）、MyBatis Plus、JSQLParser、Validation | 数据访问服务 |
-| `chaos-mq-starter` | `chaos-autoconfigure`（mq）、`chaos-mq-kafka`、`chaos-mq-rocketmq`、`chaos-mq-jdbc` | 消息服务 |
+| `chaos-redis-starter` | `chaos-autoconfigure`（redis）、`chaos-redis`、Redisson | Redis 基础设施与可选两级缓存能力 |
+| `chaos-mybatis-starter` | `chaos-autoconfigure`（mybatis）、`chaos-mybatis`、MyBatis Plus、JSQLParser、Validation | 数据访问服务 |
+| `chaos-mq-starter` | `chaos-autoconfigure`（mq）、`chaos-mq`、`chaos-mq-kafka`、`chaos-mq-rocketmq` | 消息服务（含可靠消息抽象与 Broker 适配） |
+| `chaos-mq-jdbc-starter` | `chaos-mq-starter`、`chaos-autoconfigure`（mq-outbox）、`chaos-mq-jdbc`、Spring JDBC | JDBC outbox 持久化与定时派发 |
 | `chaos-storage-starter` | `chaos-autoconfigure`（storage）、OSS、MinIO、Validation | 对象存储 |
 | `chaos-audit-starter` | `chaos-autoconfigure`（audit） | 默认结构化日志审计 |
 | `chaos-audit-jdbc-starter` | `chaos-audit-starter`、`chaos-autoconfigure`（audit-jdbc）、JDBC、Validation | JDBC 审计持久化 |

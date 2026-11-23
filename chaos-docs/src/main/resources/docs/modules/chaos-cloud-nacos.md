@@ -48,5 +48,6 @@ Nacos discovery/config 依赖边界和约定。
 
 ## 注意事项
 
+- 生产环境务必显式配置 `spring.cloud.nacos.discovery.namespace` / `spring.cloud.nacos.config.namespace` 及非 `DEFAULT_GROUP` 分组，否则启动诊断（`nacosIsolation`）会发出告警提醒不同环境串扰风险。
 - 保持模块职责单一，避免把无关能力塞入当前模块。
 - 新增公共 API 后同步更新本手册和 architecture.md。

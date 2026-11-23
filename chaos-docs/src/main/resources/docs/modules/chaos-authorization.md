@@ -33,11 +33,12 @@ chaos:
       type: jwt
     client:
       store-type: memory
-      id: chaos-client
-      secret: "{noop}chaos-secret"
-      scopes:
-        - read
-        - write
+      registrations:
+        chaos-client:
+          secret: "{noop}chaos-secret"
+          scopes:
+            - read
+            - write
     jwk:
       public-key-location: classpath:keys/auth-public.pem
       private-key-location: classpath:keys/auth-private.pem

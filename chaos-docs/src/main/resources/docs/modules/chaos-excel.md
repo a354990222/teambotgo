@@ -286,6 +286,7 @@ Sheet 复用，名称带哈希后缀，避免 `a-b` 与 `a_b` 碰撞。
 - 不开启数据库事务；`handler` 按批/按行自行决定事务边界，`ErrorPolicy.collect` 不保证已处理行回滚。
 - 上传文件字节上限由 `ExcelImports.stage` 执行；行数、列数、Sheet 数、解压后大小、压缩比由
   `ImportOptions` / `ImportPlan` 执行。
+- 通用文件魔数校验（`FileSignatures`）与 Office ZIP 安全检查（`OfficeDocuments`）已合并至 `com.chaos.excel.document`（不再保留独立的 `chaos-storage-document` 模块）。
 - Excel 下拉和必填只是输入辅助，**服务端校验才是权威**。
 - 公式单元格只读取缓存值，不调用 `FormulaEvaluator`；没有缓存值时报 `EXCEL_FORMULA_NO_CACHE`。
 - 合并单元格 P0 只读取左上角，其他区域按空处理。

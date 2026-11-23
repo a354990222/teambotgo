@@ -35,7 +35,7 @@ class BlacklistFilterTest {
         StepVerifier.create(filter.filter(exchange, next -> Mono.empty())).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(responseBody(exchange)).contains("\"code\":\"403\"");
+        assertThat(responseBody(exchange)).contains("\"code\":\"COMMON_FORBIDDEN\"");
     }
 
     /**

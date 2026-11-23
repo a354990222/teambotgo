@@ -33,6 +33,7 @@
         <module>chaos-tenant</module>
         <module>chaos-security</module>
         <module>chaos-web</module>
+        <module>chaos-web-reactive</module>
         <module>chaos-http-client</module>
         <module>chaos-data</module>
         <module>chaos-mq</module>
@@ -84,8 +85,11 @@
         <chaos.api.check.skip>true</chaos.api.check.skip>
         <chaos.release.compareVersion>1.0.0</chaos.release.compareVersion>
         <gpg.skip>true</gpg.skip>
-        <!-- 覆盖率门槛：先以报告为主，门槛可在 CI 中通过 -Dchaos.coverage.minimum 提高。 -->
+        <!-- 覆盖率门槛：全局默认保持报告模式，核心模块可在各自 pom.xml 中覆盖指令/分支门槛；CI 可用 -Dchaos.coverage.minimum 提高全局线门槛。 -->
         <chaos.coverage.minimum>0.00</chaos.coverage.minimum>
+        <chaos.coverage.instruction.minimum>${chaos.coverage.minimum}</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.00</chaos.coverage.branch.minimum>
+        <chaos.javadoc.doclint>all,-missing</chaos.javadoc.doclint>
     </properties>
 
     <build>
@@ -228,11 +232,8 @@
                     <version>${maven-javadoc-plugin.version}</version>
                     <configuration>
                         <encoding>${project.build.sourceEncoding}</encoding>
-                        <!--
-                            现有中文注释中存在大量未转义的 HTML 片段，直接开启 doclint 会阻断发布。
-                            修复全部注释后可改为 all,-missing；在此之前保持 none，并通过 CI 的 javadoc 构建发现回归。
-                        -->
-                        <doclint>none</doclint>
+                        <!-- 开启 all,-missing 检查 HTML/语法/引用错误；局部排查时可用 -Dchaos.javadoc.doclint=none 覆盖。 -->
+                        <doclint>${chaos.javadoc.doclint}</doclint>
                         <quiet>true</quiet>
                     </configuration>
                 </plugin>
@@ -441,6 +442,16 @@
                                                     <counter>LINE</counter>
                                                     <value>COVEREDRATIO</value>
                                                     <minimum>${chaos.coverage.minimum}</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>INSTRUCTION</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>${chaos.coverage.instruction.minimum}</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>BRANCH</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>${chaos.coverage.branch.minimum}</minimum>
                                                 </limit>
                                             </limits>
                                         </rule>

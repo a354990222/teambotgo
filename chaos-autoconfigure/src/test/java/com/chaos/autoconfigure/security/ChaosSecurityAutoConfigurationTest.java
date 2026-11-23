@@ -52,7 +52,7 @@ class ChaosSecurityAutoConfigurationTest {
             assertThat(context).hasSingleBean(ChaosSecurityProperties.class);
             ChaosSecurityProperties properties = context.getBean(ChaosSecurityProperties.class);
             assertThat(properties.isHttpBasicEnabled()).isFalse();
-            assertThat(properties.getPermitAll()).containsExactly("/actuator/health");
+            assertThat(properties.getPermitAll()).containsExactly("/actuator/health/**");
             assertThat(properties.getToken().getType()).isEqualTo(ChaosSecurityProperties.TokenType.JWT);
             assertThat(context).doesNotHaveBean(SecurityFilterChain.class);
             assertThat(context).hasSingleBean(RbacAuthorizationPolicy.class);

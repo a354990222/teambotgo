@@ -8,12 +8,12 @@ JDBC outbox 可靠消息持久化适配器。源码目录为 `chaos-mq/chaos-mq-
 
 ## 依赖方式
 
-业务服务通常通过 `chaos-mq-starter` 间接引入。
+业务服务通常通过 `chaos-mq-jdbc-starter` 引入。
 
 ```xml
 <dependency>
     <groupId>com.chaos</groupId>
-    <artifactId>chaos-mq-starter</artifactId>
+    <artifactId>chaos-mq-jdbc-starter</artifactId>
 </dependency>
 ```
 

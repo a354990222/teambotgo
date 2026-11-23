@@ -12,6 +12,10 @@
     <artifactId>chaos-web</artifactId>
     <name>chaos-web</name>
     <description>Web MVC enhancements: result, validation, exception, trace, access log, rate limit, idempotency and XSS.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <!-- 本模块承载 @ConfigurationProperties 类，需要在这里生成 spring-configuration-metadata.json 供 IDE 提示。 -->
         <dependency>
@@ -79,6 +83,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 使用真实 DAO 异常验证全局映射；Web 运行时不依赖 spring-tx。 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- 库模块只声明 jakarta.validation-api；Hibernate Validator 实现仅在测试中使用，由应用侧 starter 提供。 -->

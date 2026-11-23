@@ -3,6 +3,7 @@ package com.chaos.mybatis.audit;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.core.metadata.TableFieldInfo;
 import com.baomidou.mybatisplus.core.metadata.TableInfo;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import org.apache.ibatis.reflection.MetaObject;
@@ -16,18 +17,28 @@ public class ChaosMetaObjectHandler implements MetaObjectHandler {
 
     private final AuditorProvider auditorProvider;
 
+    private final Clock clock;
+
     /**
-     * 使用默认操作人提供者（读取 {@link com.chaos.core.context.RequestContext}）。
+     * 使用默认操作人提供者（读取 {@link com.chaos.core.context.RequestContext}）和系统默认时钟。
      */
     public ChaosMetaObjectHandler() {
-        this(defaultAuditorProvider());
+        this(defaultAuditorProvider(), Clock.systemDefaultZone());
     }
 
     /**
-     * 使用指定操作人提供者。
+     * 使用指定操作人提供者和系统默认时钟。
      */
     public ChaosMetaObjectHandler(AuditorProvider auditorProvider) {
+        this(auditorProvider, Clock.systemDefaultZone());
+    }
+
+    /**
+     * 使用指定操作人提供者和业务时钟。
+     */
+    public ChaosMetaObjectHandler(AuditorProvider auditorProvider, Clock clock) {
         this.auditorProvider = Objects.requireNonNull(auditorProvider, "auditorProvider must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
     /**
@@ -44,7 +55,7 @@ public class ChaosMetaObjectHandler implements MetaObjectHandler {
      */
     @Override
     public void insertFill(MetaObject metaObject) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         String auditor = auditor();
         strictInsertFill(metaObject, "createdAt", LocalDateTime.class, now);
         strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
@@ -58,7 +69,7 @@ public class ChaosMetaObjectHandler implements MetaObjectHandler {
      */
     @Override
     public void updateFill(MetaObject metaObject) {
-        strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
+        strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now(clock));
         strictUpdateFill(metaObject, "updatedBy", String.class, auditor());
     }
 

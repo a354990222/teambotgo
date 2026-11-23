@@ -42,6 +42,7 @@
         <module>chaos-redis-starter</module>
         <module>chaos-mybatis-starter</module>
         <module>chaos-mq-starter</module>
+        <module>chaos-mq-jdbc-starter</module>
         <module>chaos-storage-starter</module>
     </modules>
 </project>

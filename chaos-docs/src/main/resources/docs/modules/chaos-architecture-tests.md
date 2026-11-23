@@ -6,19 +6,21 @@
 
 仓库级架构治理测试（test scope，包 `com.chaos.architecture`），在 `./mvnw test` 阶段执行。
 
-| 测试类 | 内容 |
-| --- | --- |
-| `DependencyDirectionArchitectureTest` | 模块依赖方向规则 1~9（见 [architecture.md 1.1](../architecture.md#11-依赖方向规则)），失败信息标明规则编号、模块、文件与 import |
-| `LayerBoundaryArchitectureTest` | 模块边界、自动装配结构、BOM、发布治理与关键安全约定 |
-| `ProjectModel` | 共享的 POM 直接依赖解析与源码 import / package 扫描 |
+| 测试类 | 所在模块 | 内容 |
+| --- | --- | --- |
+| `DependencyDirectionArchitectureTest` | `chaos-architecture-tests` | 模块依赖方向规则 1~10（见 [architecture.md 1.1](../architecture.md#11-依赖方向规则)），失败信息标明规则编号、模块、文件与 import |
+| `LayerBoundaryArchitectureTest` | `chaos-architecture-tests` | 基于 POM XML DOM 解析、SnakeYAML 与去注释源码剖析的模块边界、BOM 双向一致性、发布治理与配置安全检查 |
+| `ArchetypeArchitectureTest` | `chaos-architecture-tests` | 校验 `chaos-archetypes` 的配置模板与文档模板对齐以及 Velocity 占位约束 |
+| `ProjectModel` | `chaos-architecture-tests` | 共享的 POM XML DOM 解析、注释剥离、import / package 扫描 |
+| `ArchitectureRulesArchUnitTest` | `chaos-autoconfigure` | 基于 ArchUnit 1.4.1 的字节码级规则校验（包隔离、`@AutoConfiguration` 位置、审计发布调用、`@Validated`、`Result`/`DefaultApiResult` 结构一致性等） |
 
-`LayerBoundaryArchitectureTest` 约束：
+`LayerBoundaryArchitectureTest` 与 `ArchitectureRulesArchUnitTest` 联合约束：
 
-- 核心契约模块（`chaos-core`、`chaos-domain`、`chaos-audit`、`chaos-tenant`、`chaos-mq`、`chaos-storage`）不得引入 Spring、数据库、Redis、MQ、对象存储 SDK；扫描目录必须真实存在，模块改名后不会被静默跳过。
-- starter 无 Java 代码、autoconfigure 使用 `AutoConfiguration.imports`、禁止 `package-info.java`。
+- 核心契约模块（`chaos-core`、`chaos-security-api`、`chaos-domain`、`chaos-audit`、`chaos-tenant`、`chaos-mq`、`chaos-storage`）不得引入 Spring、数据库、Redis、MQ、对象存储 SDK；扫描目录必须真实存在，模块改名后不会被静默跳过。
+- starter 无 Java 代码、autoconfigure 仅含装配逻辑且使用 `AutoConfiguration.imports`、禁止 `package-info.java`。
 - 公共 BOM 与真实模块双向一致；根 POM 不再声明 `dependencyManagement`；模块 POM 不写冗余的 `${project.version}`。
-- 承载 `@ConfigurationProperties` 的模块必须引入 configuration processor。
-- 自动装配顺序、生产安全检查、审计发布等关键约定。
+- 承载 `@ConfigurationProperties` 的模块必须引入 configuration processor 并启用 `@Validated`。
+- 自动装配顺序、生产安全检查、审计发布等关键约定（`.java` 与 `pom.xml` 检查均经注释剥离或 DOM 解析，不会被注释文本误放行）。
 
 ## 发布与依赖
 
@@ -29,6 +31,8 @@
 
 ```bash
 ./mvnw -B -pl chaos-architecture-tests test
+# 运行字节码级 ArchUnit 规则（chaos-autoconfigure）
+./mvnw -B -pl chaos-autoconfigure -am -Dtest=ArchitectureRulesArchUnitTest -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
 运行真实基础设施集成测试：
@@ -41,10 +45,7 @@
 
 - 增加新的核心契约模块时，同步加入 `CONTRACT_SOURCE_ROOTS`。
 - 增加任何带 Java 源码的新模块时，在 `DependencyDirectionArchitectureTest.BASE_PACKAGES` 登记基础包，否则规则 9 失败。
-- 断言优先解析结构（POM 用 DOM 解析、注解截取整个 `@AutoConfiguration(...)` 片段），避免依赖换行或属性顺序等格式细节。
-- 当前规则基于源码/文本扫描，成本低但只能证明“声明存在”；需要验证运行期行为的规则应放到对应模块的 `ApplicationContextRunner` 测试中。
-  依赖方向规则刻意没有使用 ArchUnit：架构测试模块不依赖业务模块，单独运行或并行构建时无需等待业务模块编译；
-  模块级 optional / test scope 也只能从 POM 准确获得。
+- `chaos-architecture-tests` 本身不依赖业务模块，因此借助 XML DOM、SnakeYAML 与 `ProjectModel.codeWithoutComments(...)` 实现无编译期依赖的结构检查，可在 `-pl chaos-architecture-tests` 独立运行；字节码级 ArchUnit 规则放在汇聚全部可选库类路径的 `chaos-autoconfigure`（`ArchitectureRulesArchUnitTest`）中执行，二者互补。
 
 ## 注意事项
 

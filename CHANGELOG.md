@@ -1,7 +1,28 @@
 # Changelog
 
-## Unreleased
+所有重要变更都记录在这里。版本格式遵循语义化版本：`MAJOR.MINOR.PATCH`。
 
+## 1.0.0 — 2026-11-23
+
+> 首个对外发布版本（含 `2026-09-16` 基线及首发前最后一轮企业级加固与文档收口）。
+> 此前的 `0.1.0-SNAPSHOT` / `1.0.1` / `1.0.2` 只在内部迭代，从未有项目引入，
+> 因此不提供升级路径，也不保留旧坐标的 relocation POM。
+>
+> 下文按能力域记录 1.0.0 交付的内容。其中 **Security / Fixed 段描述的是内部迭代期间发现并修复的问题**——
+> 对使用 1.0.0 的项目没有升级动作，保留是因为它们解释了当前默认值为什么是这样（例如为什么默认不信任
+> `X-Forwarded-For`、为什么 `@Idempotent` 默认要求携带 key）。
+
+### 首发前新增与收口（2026-11-23）
+
+- `chaos-http-client` 与 `chaos-cloud-starter`：新增独立 HTTP 客户端与 OpenFeign 统一响应契约模块（`ServiceHttpClients` / `ServiceHttpClient`、`ChaosFeignResultDecoder`、`ChaosFeignErrorDecoder`、`ServiceErrorTranslator`），`ChaosCloudAutoConfiguration` 默认启用 `chaos.cloud.feign.unwrap-result=true`，消费方引入 `chaos-cloud-starter` 后可自动解包下游 `Result<T>` 并翻译远端错误码为 `BizException`。
+- `chaos-core` 新增跨传输栈统一响应契约 `com.chaos.core.result.ApiResult`、`DefaultApiResult` 与无依赖 JSON 序列化工具 `ApiResultJson`，供 Servlet、WebFlux 网关与非 Web 边界复用。
+- 模块合并收口：将原 `chaos-transaction` 合并入 `chaos-service`（`TransactionalSideEffects`），将原 `chaos-storage-document` 合并入 `chaos-excel`（`FileSignatures`、`OfficeDocuments`），移除冗余零散模块并同步清理 BOM、starter 与文档引用。
+- `chaos-redis` 新增可选 Caffeine L1 + Redis L2 两级缓存能力：`TwoLevelCacheManager`、`TwoLevelCache`、`CacheAsideTemplate` 与 `RedisTwoLevelCacheInvalidationBridge`（支持空值防穿透、按 key 分段单飞防击穿及 Redis Pub/Sub 跨实例 L1 主动失效广播）；`ChaosRedisAutoConfiguration` / `ChaosRedisCacheAsideAutoConfiguration` 提供 `chaos.redis.two-level-cache.*` 自动装配。
+- `chaos-service` 补充 `VirtualThreadContextPropagationTest` 验证 JDK 21 虚拟线程开启后 `TaskExecutionAutoConfiguration` 对 `TraceContextTaskDecorator` / `ContextPropagation` 的自动继承与清理。
+- `chaos-core`、`chaos-http-client` 与 `chaos-gateway` 新增原生熔断、并发舱壁与调用超时预算能力：`chaos-core` 提供 `SlidingWindowCircuitBreaker`、`SemaphoreBulkhead`、`ResilienceRegistry` 与 `ResilienceExecutor`；OpenFeign 与 `ServiceHttpClients` 通过 `ChaosResilientFeignClient` / `ResilientHttpRequestInterceptor`（`chaos.cloud.resilience.*`）按目标服务隔离 `5xx`/IO/超时失败；网关通过 `GatewayResilienceFilter`（`chaos.gateway.resilience.*`）按路由隔离保护并输出 `chaos.resilience.*` 治理指标。
+- 新增 `chaos-web-reactive` 模块并通过 `chaos-cloud-reactive-starter` 与 `ChaosWebReactiveAutoConfiguration` 装配 WebFlux 响应式业务栈：包含 `ReactiveResultHandler` 统一 `ApiResult` 封装、`ReactiveGlobalExceptionHandler`、`ReactiveTraceWebFilter`（Reactor `Context` 传播）、非阻塞 `RedisReactiveRateLimiter` / `RedisReactiveIdempotentRepository`（含内存兜底与生产安全校验）及 `ReactiveSecurityWebFilter`。
+- 工程门禁与架构测试强化：根 POM 默认启用 Javadoc `doclint=all,-missing`；全部 36 个 Java 代码模块（含业务库、响应式 Web 模块、自动装配、测试支持及全部 4 个示例模块）均在 `-Pchaos-coverage` 下启用 `70%` 指令 / `55%` 分支 JaCoCo 门槛；`chaos-autoconfigure` 引入 ArchUnit `1.4.1`（`ArchitectureRulesArchUnitTest`）执行字节码级边界约束；`chaos-architecture-tests` 彻底消除 `.java`/POM/YAML 源码文本子串断言，升级为 POM XML DOM、SnakeYAML 与去注释 AST/正则解析。
+- 全量重构技术文档：新增 `chaos-web-reactive`、`chaos-http-client`、`chaos-process`、`chaos-process-jdbc`、`chaos-process-redis` 模块手册，全面更新 `architecture.md`、`index.md`、`optimization-roadmap.md`、`release-governance.md`、`configuration-index.md`、`chaos-gateway.md`、`chaos-job.md` 等手册及 `configuration-reference.md`。
 - `chaos-core` 新增通用应用契约：`com.chaos.core.file.AttachmentFile`、`com.chaos.core.importing`（导入来源、导入结果、行级错误、行处理器/校验器、文件级拒绝异常），供 Application 层直接依赖，不泄漏 Excel/Web 类型。
 - `chaos-core` 的 `ImportRowError` 统一承载工作表、行号、列、错误码、原因和原始单元格；`chaos-excel` 原 `ImportError` 已合并到该类型，不再保留重复模型。
 - `chaos-excel` 新增 `com.chaos.excel.support.ExcelImportSupport`、`ExcelImportSourceFactory` 与 `ExcelFiles`：统一严格表头导入计划、行级错误收集、框架异常翻译、暂存文件访问和 `ExcelFile -> AttachmentFile` 转换。
@@ -18,17 +39,6 @@
 - 精简 `/actuator/health` 中的 `chaosRuntime`：仅展示已启用能力并省略空区块，过滤 shell、classpath 与 IDE 噪声。
 - 增加服务版本、构建时间、启动时间和运行时长；`chaos-boot-parent` 默认生成 Spring Boot build-info。
 - 由框架提供完整 Health 详情与低价值健康指标的低优先级默认值，业务服务无需重复配置。
-
-所有重要变更都记录在这里。版本格式遵循语义化版本：`MAJOR.MINOR.PATCH`。
-
-## 1.0.0 — 2026-09-16
-
-> 首个对外发布版本。此前的 `0.1.0-SNAPSHOT` / `1.0.1` / `1.0.2` 只在内部迭代，从未有项目引入，
-> 因此不提供升级路径，也不保留旧坐标的 relocation POM。
->
-> 下文按能力域记录 1.0.0 交付的内容。其中 **Security / Fixed 段描述的是内部迭代期间发现并修复的问题**——
-> 对使用 1.0.0 的项目没有升级动作，保留是因为它们解释了当前默认值为什么是这样（例如为什么默认不信任
-> `X-Forwarded-For`、为什么 `@Idempotent` 默认要求携带 key）。
 
 ### 模块结构
 

@@ -16,6 +16,10 @@
         RBAC/ABAC authorization model and data-scope context. Gateway, persistence and Redis adapters depend on this
         module instead of chaos-security so that servlet filters and AOP stay out of their classpath.
     </description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <!-- 约束：本模块只允许依赖 chaos-core 与 JDK，禁止引入 Spring / Spring Security（架构测试校验）。 -->
         <dependency>

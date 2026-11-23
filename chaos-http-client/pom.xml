@@ -12,10 +12,18 @@
     <artifactId>chaos-http-client</artifactId>
     <name>chaos-http-client</name>
     <description>Service-to-service HTTP client: bounded transport, client-credentials token refresh, idempotency and error translation.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>
             <artifactId>chaos-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chaos</groupId>
+            <artifactId>chaos-trace</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
@@ -33,6 +41,11 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-core</artifactId>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

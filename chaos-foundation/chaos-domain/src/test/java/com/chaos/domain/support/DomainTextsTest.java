@@ -46,4 +46,18 @@ class DomainTextsTest {
         assertEquals(List.of("one", "two"),
                 DomainTexts.normalizeDistinct(List.of(" one ", "", "two", "one", " \u2003 ")));
     }
+
+    @Test
+    void requireTextWithMaxLengthAndIdentityTextValidation() {
+        assertEquals("abc", DomainTexts.requireText(" abc ", 5, "标题", IllegalArgumentException::new));
+        assertThrows(IllegalArgumentException.class,
+                () -> DomainTexts.requireText("abcdef", 5, "标题", IllegalArgumentException::new));
+        assertThrows(IllegalArgumentException.class,
+                () -> DomainTexts.requireText(" ", 5, "标题", IllegalArgumentException::new));
+
+        DomainTexts.requireIdentityText("user_01", 2, 16, "用户标识");
+        assertThrows(IllegalArgumentException.class, () -> DomainTexts.requireIdentityText(" a", 2, 16, "用户标识"));
+        assertThrows(IllegalArgumentException.class, () -> DomainTexts.requireIdentityText("a", 2, 16, "用户标识"));
+        assertThrows(IllegalArgumentException.class, () -> DomainTexts.requireIdentityText("a\nb", 2, 16, "用户标识"));
+    }
 }

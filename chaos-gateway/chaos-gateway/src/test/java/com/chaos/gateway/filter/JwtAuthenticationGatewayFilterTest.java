@@ -36,7 +36,7 @@ class JwtAuthenticationGatewayFilterTest {
         StepVerifier.create(filter.filter(exchange, next -> Mono.empty())).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(responseBody(exchange)).contains("\"code\":\"401\"");
+        assertThat(responseBody(exchange)).contains("\"code\":\"COMMON_UNAUTHORIZED\"");
     }
 
     /**

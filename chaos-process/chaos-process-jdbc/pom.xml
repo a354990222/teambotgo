@@ -12,6 +12,10 @@
     <artifactId>chaos-process-jdbc</artifactId>
     <name>chaos-process-jdbc</name>
     <description>JDBC process engine adapter.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>

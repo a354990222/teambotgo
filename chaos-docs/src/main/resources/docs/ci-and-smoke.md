@@ -55,14 +55,19 @@ scripts/verify-structure.sh
 脚本优先使用 ripgrep，未安装时自动回退到 grep。搜索工具“无匹配”（退出码 1）视为通过，工具缺失或执行错误（退出码大于 1）会直接失败，
 不会再出现“命令不存在却显示检查通过”的情况。Markdown 文档不参与占位代码扫描，因此文档中可以描述这些规则本身。
 
-## 覆盖率
+## 覆盖率与 Javadoc 校验
 
 ```bash
 ./mvnw -B -Pchaos-coverage verify
 ```
 
-报告位于各模块 `target/site/jacoco/index.html`。门槛由 `chaos.coverage.minimum`（行覆盖率，默认 `0.00`）控制，
-补齐测试后可以在 CI 中逐步提高，例如 `-Dchaos.coverage.minimum=0.60`。
+报告位于各模块 `target/site/jacoco/index.html`。全局属性 `chaos.coverage.minimum` 默认 `0.00`（可在 CI 用 `-Dchaos.coverage.minimum=0.60` 提升全局下限）；全部 36 个 Java 代码模块（含全部核心库、响应式 Web 模块、自动装配、测试支持与 4 个示例模块）已在各自 `pom.xml` 中强制配置 `70%` 指令 / `55%` 分支硬门槛。
+
+根 POM 已开启 Javadoc `doclint=all,-missing`（通过属性 `chaos.javadoc.doclint` 控制）：
+
+```bash
+./mvnw -B -pl '!chaos-dependencies,!chaos-boot-parent' org.apache.maven.plugins:maven-javadoc-plugin:3.12.0:javadoc
+```
 
 ## Archetype 验证
 

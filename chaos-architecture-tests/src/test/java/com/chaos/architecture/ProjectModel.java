@@ -105,10 +105,10 @@ final class ProjectModel {
     }
 
     /**
-     * 解析源文件中的 import（含 static import 的类型部分）。
+     * 解析源文件中的 import（含 static import 的类型部分），先剥离注释避免注释里的伪 import 误判。
      */
     static List<String> imports(Path javaFile) throws IOException {
-        String source = Files.readString(javaFile, StandardCharsets.UTF_8);
+        String source = codeWithoutComments(javaFile);
         List<String> imports = new ArrayList<>();
         Matcher matcher = IMPORT.matcher(source);
         while (matcher.find()) {
@@ -118,11 +118,138 @@ final class ProjectModel {
     }
 
     /**
-     * 解析源文件的 package 声明。
+     * 解析源文件的 package 声明（忽略注释）。
      */
     static Optional<String> packageOf(Path javaFile) throws IOException {
-        Matcher matcher = PACKAGE.matcher(Files.readString(javaFile, StandardCharsets.UTF_8));
+        Matcher matcher = PACKAGE.matcher(codeWithoutComments(javaFile));
         return matcher.find() ? Optional.of(matcher.group(1)) : Optional.empty();
+    }
+
+    /**
+     * 剥离 Java 源码中的 {@code // ...} 与 {@code /* ... * /} 注释（保留字符串字面量与换行）。
+     */
+    static String codeWithoutComments(Path javaFile) throws IOException {
+        return stripJavaComments(Files.readString(javaFile, StandardCharsets.UTF_8), false);
+    }
+
+    /**
+     * 剥离 Java 源码中的注释与字符串字面量，便于仅校验代码结构声明或注解而不受注释/文本干扰。
+     */
+    static String codeWithoutCommentsOrStrings(Path javaFile) throws IOException {
+        return stripJavaComments(Files.readString(javaFile, StandardCharsets.UTF_8), true);
+    }
+
+    static Element parseXml(Path xmlFile) throws IOException {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(false);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            return factory.newDocumentBuilder().parse(xmlFile.toFile()).getDocumentElement();
+        } catch (Exception ex) {
+            throw new IOException("XML 解析失败: " + xmlFile, ex);
+        }
+    }
+
+    static List<Element> elements(Element root, String tagName) {
+        List<Element> result = new ArrayList<>();
+        org.w3c.dom.NodeList list = root.getElementsByTagName(tagName);
+        for (int i = 0; i < list.getLength(); i++) {
+            if (list.item(i) instanceof Element el) {
+                result.add(el);
+            }
+        }
+        return result;
+    }
+
+    static Element directChild(Element element, String tagName) {
+        return child(element, tagName);
+    }
+
+    static String directChildText(Element element, String tagName) {
+        return childText(element, tagName);
+    }
+
+    private static String stripJavaComments(String src, boolean stripStrings) {
+        StringBuilder out = new StringBuilder(src.length());
+        int len = src.length();
+        int i = 0;
+        while (i < len) {
+            char c = src.charAt(i);
+            if (c == '/' && i + 1 < len && src.charAt(i + 1) == '/') {
+                i += 2;
+                while (i < len && src.charAt(i) != '\n') {
+                    i++;
+                }
+            } else if (c == '/' && i + 1 < len && src.charAt(i + 1) == '*') {
+                i += 2;
+                while (i + 1 < len && !(src.charAt(i) == '*' && src.charAt(i + 1) == '/')) {
+                    if (src.charAt(i) == '\n') {
+                        out.append('\n');
+                    }
+                    i++;
+                }
+                i = Math.min(i + 2, len);
+            } else if (c == '"' || c == '\'') {
+                char quote = c;
+                if (c == '"' && i + 2 < len && src.charAt(i + 1) == '"' && src.charAt(i + 2) == '"') {
+                    if (!stripStrings) {
+                        out.append("\"\"\"");
+                    } else {
+                        out.append("\"\"");
+                    }
+                    i += 3;
+                    while (i < len) {
+                        if (src.charAt(i) == '\\' && i + 1 < len) {
+                            if (!stripStrings) {
+                                out.append(src, i, i + 2);
+                            }
+                            i += 2;
+                            continue;
+                        }
+                        if (i + 2 < len && src.charAt(i) == '"' && src.charAt(i + 1) == '"'
+                                && src.charAt(i + 2) == '"') {
+                            if (!stripStrings) {
+                                out.append("\"\"\"");
+                            }
+                            i += 3;
+                            break;
+                        }
+                        if (src.charAt(i) == '\n' || !stripStrings) {
+                            out.append(src.charAt(i));
+                        }
+                        i++;
+                    }
+                } else {
+                    if (!stripStrings) {
+                        out.append(quote);
+                    } else if (quote == '"') {
+                        out.append("\"\"");
+                    }
+                    i++;
+                    while (i < len) {
+                        char sc = src.charAt(i);
+                        if (sc == '\\' && i + 1 < len) {
+                            if (!stripStrings) {
+                                out.append(src, i, i + 2);
+                            }
+                            i += 2;
+                            continue;
+                        }
+                        if (!stripStrings) {
+                            out.append(sc);
+                        }
+                        i++;
+                        if (sc == quote || sc == '\n') {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                out.append(c);
+                i++;
+            }
+        }
+        return out.toString();
     }
 
     static Path projectRoot() {

@@ -12,7 +12,9 @@
 | 写非 Web 服务（MQ 消费者、批处理） | `chaos-application-starter` | 按需追加能力模板 | 参考[业务服务](checklists/web-service.md)中的数据、Redis 部分 | [启动报告](diagnostics.md#1-启动报告) |
 | 接数据库 / 多租户 | `+ chaos-mybatis-starter` | [addons/mybatis.yml](templates/addons/mybatis.yml) | [业务服务 §5](checklists/web-service.md#5-数据与多租户使用-chaos-mybatis-时) | 缺少租户上下文、租户 ID 非法的报错说明 |
 | 导入导出 Excel | `+ chaos-excel` | 无需配置 | [chaos-excel](modules/chaos-excel.md) | — |
-| 上线多实例 | `+ chaos-redis-starter` | [addons/redis.yml](templates/addons/redis.yml) | 各场景清单 §1 | 生产安全检查报错会列出缺少的实现 |
+| 上线多实例 | `+ chaos-redis-starter` | [addons/redis.yml](templates/addons/redis.yml) | 各场景清单 §1 · [两级缓存](capabilities/cache-key.md) | 生产安全检查报错会列出缺少的实现 |
+| 跨服务 HTTP / Feign 调用 | `+ chaos-cloud-starter` | — | [chaos-http-client](modules/chaos-http-client.md) · [chaos-cloud](modules/chaos-cloud.md) | 需在业务启动类声明 `@EnableFeignClients`（内置熔断/舱壁/超时保护） |
+| 搭 WebFlux 响应式业务服务 | `chaos-cloud-reactive-starter` | — | [chaos-web-reactive](modules/chaos-web-reactive.md) | 不包含 Feign，生产环境需配 `spring-boot-starter-data-redis-reactive` |
 | 发可靠消息 | `+ chaos-mq-starter` + 建 outbox 表 | [addons/mq.yml](templates/addons/mq.yml) | [chaos-mq-jdbc](modules/chaos-mq-jdbc.md) | outbox 表缺失时启动 WARN 给出建表脚本 |
 | 使用状态机 / 流程引擎 | `+ chaos-process-starter` | [addons/process.yml](templates/addons/process.yml) | [状态机与流程引擎](capabilities/process-engine.md) | 生产环境使用内存引擎时阻断启动 |
 | 存文件 | `+ chaos-storage-starter` | [addons/storage.yml](templates/addons/storage.yml) | [chaos-storage](modules/chaos-storage.md) | — |
@@ -60,9 +62,14 @@
 **Web 与应用层**
 
 - [chaos-web](modules/chaos-web.md)
-- [chaos-service](modules/chaos-service.md)
+- [chaos-web-reactive](modules/chaos-web-reactive.md)（WebFlux 统一响应、全局异常、Trace、限流、幂等、XSS）
+- [chaos-http-client](modules/chaos-http-client.md)（服务间 HTTP 客户端、OpenFeign Result 解包与熔断舱壁）
+- [chaos-service](modules/chaos-service.md)（事务、提交后副作用、重试、领域事件、异步/虚拟线程上下文）
 - [chaos-tenant](modules/chaos-tenant.md)
 - [chaos-job](modules/chaos-job.md)
+- [chaos-process](modules/chaos-process.md)（状态机内核与流程契约）
+- [chaos-process-jdbc](modules/chaos-process-jdbc.md)（JDBC 流程持久化）
+- [chaos-process-redis](modules/chaos-process-redis.md)（Redis Lua CAS 流程持久化）
 
 **安全（chaos-security）**
 
@@ -122,7 +129,7 @@
 - [访问控制 RBAC + ABAC（chaos-security-api + chaos-security）](capabilities/access-control.md)
 - [分布式锁（chaos-core + chaos-redis）](capabilities/distributed-lock.md)
 - [幂等（chaos-core + chaos-web + chaos-mq + chaos-redis）](capabilities/idempotency.md)
-- [缓存 key 策略（chaos-domain + chaos-redis）](capabilities/cache-key.md)
+- [缓存 key 策略与两级缓存（chaos-domain + chaos-redis）](capabilities/cache-key.md)
 - [日志约定与模板（chaos-trace）](capabilities/logging.md)
 - [错误文案国际化（chaos-core + chaos-web）](capabilities/i18n.md)
 - [治理指标与健康检查（chaos-core + chaos-trace）](capabilities/metrics.md)

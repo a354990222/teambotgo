@@ -12,6 +12,10 @@
     <artifactId>chaos-mybatis</artifactId>
     <name>chaos-mybatis</name>
     <description>MyBatis Plus pagination, tenant, data scope, logic delete and auditing support.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <!-- 本模块承载 @ConfigurationProperties 类，需要在这里生成 spring-configuration-metadata.json 供 IDE 提示。 -->
         <dependency>

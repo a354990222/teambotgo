@@ -12,6 +12,10 @@
     <artifactId>chaos-mq-kafka</artifactId>
     <name>chaos-mq-kafka</name>
     <description>Kafka adapter for chaos MQ contracts.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>

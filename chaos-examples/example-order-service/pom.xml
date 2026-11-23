@@ -11,6 +11,10 @@
     </parent>
     <artifactId>example-order-service</artifactId>
     <name>example-order-service</name>
+        <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <!-- 场景 starter：Servlet 业务服务（web + security + tenant + audit + trace + application）。 -->
         <dependency>
@@ -32,6 +36,10 @@
         </dependency>
         <dependency>
             <groupId>com.chaos</groupId>
+            <artifactId>chaos-mq-jdbc-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chaos</groupId>
             <artifactId>chaos-cloud-starter</artifactId>
         </dependency>
         <dependency>
@@ -39,9 +47,19 @@
             <artifactId>chaos-cloud-nacos-starter</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.chaos</groupId>
+            <artifactId>example-order-api</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.chaos</groupId>
+            <artifactId>chaos-test-support</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

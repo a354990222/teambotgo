@@ -38,7 +38,7 @@ class TenantGatewayFilterTest {
         StepVerifier.create(filter.filter(exchange, chain -> Mono.empty())).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(exchange.getResponse().getBodyAsString().block()).contains("\"code\":\"403\"");
+        assertThat(exchange.getResponse().getBodyAsString().block()).contains("\"code\":\"COMMON_FORBIDDEN\"");
     }
 
     /**

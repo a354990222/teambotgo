@@ -22,6 +22,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * 架构边界测试。
@@ -121,7 +122,7 @@ class LayerBoundaryArchitectureTest {
                     .filter(fileName::endsWith)
                     .forEach(suffix -> violations.add(projectRoot().relativize(javaFile)
                             + " 领域基础模块不应暴露持久化类型后缀 " + suffix));
-            String source = Files.readString(javaFile, StandardCharsets.UTF_8);
+            String source = ProjectModel.codeWithoutComments(javaFile);
             if (source.contains("toPO(") || source.contains("toDO(") || source.contains("toEntity(")) {
                 violations.add(projectRoot().relativize(javaFile) + " 领域基础模块不应定义持久化模型转换方法");
             }
@@ -188,15 +189,20 @@ class LayerBoundaryArchitectureTest {
                     violations.add(relative + " 自动装配清单只能位于 chaos-autoconfigure");
                 }
                 if (fileName.endsWith(".java") && relative.contains("/src/main/java/") && !path.startsWith(autoconfigureModule)
-                        && Files.readString(path, StandardCharsets.UTF_8).contains("@AutoConfiguration")) {
+                        && ProjectModel.codeWithoutCommentsOrStrings(path).contains("@AutoConfiguration")) {
                     violations.add(relative + " 自动装配类只能位于 chaos-autoconfigure");
                 }
-                if (fileName.equals("pom.xml") && !path.startsWith(autoconfigureModule)
-                        && !relative.startsWith("chaos-starters/")
-                        && !relative.equals("chaos-dependencies/pom.xml")
-                        && Files.readString(path, StandardCharsets.UTF_8).contains("<artifactId>chaos-autoconfigure</artifactId>")) {
-                    violations.add(relative + " 只有 starter 可以依赖 chaos-autoconfigure");
-                }
+            }
+        }
+        ProjectModel project = ProjectModel.load();
+        for (ProjectModel.Module module : project.modules().values()) {
+            if (module.isStarter() || "chaos-autoconfigure".equals(module.artifactId())) {
+                continue;
+            }
+            boolean dependsOnAutoConfigure = module.dependencies().stream()
+                    .anyMatch(dep -> dep.isChaos() && "chaos-autoconfigure".equals(dep.artifactId()));
+            if (dependsOnAutoConfigure) {
+                violations.add(module.path() + " 只有 starter 可以依赖 chaos-autoconfigure");
             }
         }
 
@@ -262,7 +268,7 @@ class LayerBoundaryArchitectureTest {
         Path redisAutoConfiguration = projectRoot().resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/security/redis/ChaosSecurityRedisAutoConfiguration.java"
         );
-        String annotation = autoConfigurationAnnotation(Files.readString(redisAutoConfiguration, StandardCharsets.UTF_8));
+        String annotation = autoConfigurationAnnotation(ProjectModel.codeWithoutComments(redisAutoConfiguration));
 
         assertTrue(
                 annotation.contains("beforeName")
@@ -279,7 +285,7 @@ class LayerBoundaryArchitectureTest {
         Path session = projectRoot().resolve(
                 "chaos-security/chaos-authorization/src/main/java/com/chaos/authorization/kickout/AuthorizationSession.java"
         );
-        String source = Files.readString(session, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(session);
 
         assertTrue(
                 source.contains("accessTokenId")
@@ -306,15 +312,15 @@ class LayerBoundaryArchitectureTest {
         );
 
         assertTrue(
-                Files.readString(properties, StandardCharsets.UTF_8).contains("DEVICE"),
+                ProjectModel.codeWithoutComments(properties).contains("DEVICE"),
                 "授权互踢范围必须包含 DEVICE"
         );
         assertTrue(
-                Files.readString(registry, StandardCharsets.UTF_8).contains("findByPrincipalClientAndDevice"),
+                ProjectModel.codeWithoutComments(registry).contains("findByPrincipalClientAndDevice"),
                 "授权会话索引必须支持用户、客户端和设备维度查询"
         );
         assertTrue(
-                Files.readString(converter, StandardCharsets.UTF_8).contains("X-Device-Id"),
+                ProjectModel.codeWithoutComments(converter).contains("X-Device-Id"),
                 "token 请求转换器必须支持 X-Device-Id"
         );
     }
@@ -335,16 +341,17 @@ class LayerBoundaryArchitectureTest {
         );
 
         assertTrue(
-                Files.readString(properties, StandardCharsets.UTF_8).contains("maxLocalSessions = 10_000"),
+                ProjectModel.codeWithoutComments(properties).contains("maxLocalSessions = 10_000"),
                 "授权互踢本地索引必须提供 max-local-sessions 默认上限"
         );
+        String registryCode = ProjectModel.codeWithoutComments(registry);
         assertTrue(
-                Files.readString(registry, StandardCharsets.UTF_8).contains("capacity exceeded")
-                        && Files.readString(registry, StandardCharsets.UTF_8).contains("sessions.size() >= maxSessions"),
+                registryCode.contains("capacity exceeded")
+                        && registryCode.contains("sessions.size() >= maxSessions"),
                 "InMemoryAuthorizationSessionRegistry 必须在超过容量时拒绝新会话"
         );
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("getMaxLocalSessions()"),
+                ProjectModel.codeWithoutComments(autoConfiguration).contains("getMaxLocalSessions()"),
                 "授权自动装配必须把 max-local-sessions 传给本地会话索引"
         );
     }
@@ -357,7 +364,7 @@ class LayerBoundaryArchitectureTest {
         Path properties = projectRoot().resolve(
                 "chaos-security/chaos-authorization/src/main/java/com/chaos/authorization/core/ChaosAuthorizationProperties.java"
         );
-        String source = Files.readString(properties, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(properties);
 
         assertTrue(
                 source.contains("@NotNull(message = \"chaos.authorization.token must not be null\")")
@@ -387,10 +394,10 @@ class LayerBoundaryArchitectureTest {
         Path authorizationTests = projectRoot().resolve(
                 "chaos-security/chaos-authorization/src/test/java"
         );
-        String autoConfigurationSource = Files.readString(autoConfiguration, StandardCharsets.UTF_8);
+        String autoConfigurationSource = ProjectModel.codeWithoutComments(autoConfiguration);
         List<String> passwordGrantViolations = new ArrayList<>();
         for (Path javaFile : javaFiles(authorizationTests)) {
-            String source = Files.readString(javaFile, StandardCharsets.UTF_8);
+            String source = ProjectModel.codeWithoutComments(javaFile);
             if (source.contains("AuthorizationGrantType.PASSWORD")) {
                 passwordGrantViolations.add(projectRoot().relativize(javaFile).toString());
             }
@@ -417,7 +424,7 @@ class LayerBoundaryArchitectureTest {
         Path filter = projectRoot().resolve(
                 "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/JwtAuthenticationGatewayFilter.java"
         );
-        String source = Files.readString(filter, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(filter);
 
         assertTrue(
                 source.contains("if (jwtDecoder == null)") && source.contains("return unauthorized(exchange,"),
@@ -433,11 +440,11 @@ class LayerBoundaryArchitectureTest {
         Path properties = projectRoot().resolve(
                 "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/config/ChaosGatewayProperties.java"
         );
-        String source = Files.readString(properties, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(properties);
 
         assertTrue(
-                source.contains("List.of(\"/actuator/health\")")
-                        && !source.contains("List.of(\"/actuator/health\", \"/actuator/prometheus\")"),
+                source.contains("List.of(\"/actuator/health/**\")")
+                        && !source.contains("\"/actuator/prometheus\""),
                 "Gateway 默认白名单只能包含健康检查，Prometheus 应由显式配置或内网保护"
         );
     }
@@ -453,15 +460,15 @@ class LayerBoundaryArchitectureTest {
         Path autoConfiguration = projectRoot().resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/security/ChaosSecurityAutoConfiguration.java"
         );
-        String propertiesSource = Files.readString(properties, StandardCharsets.UTF_8);
-        String autoConfigurationSource = Files.readString(autoConfiguration, StandardCharsets.UTF_8);
+        String propertiesSource = ProjectModel.codeWithoutComments(properties);
+        String autoConfigurationSource = ProjectModel.codeWithoutComments(autoConfiguration);
 
         assertTrue(
                 propertiesSource.contains("httpBasicEnabled = false"),
                 "Resource Server 默认必须关闭 HTTP Basic"
         );
         assertTrue(
-                propertiesSource.contains("permitAll = {\"/actuator/health\"}")
+                propertiesSource.contains("permitAll = {\"/actuator/health/**\"}")
                         && !propertiesSource.contains("/v3/api-docs/**")
                         && !propertiesSource.contains("/swagger-ui/**"),
                 "Resource Server 默认匿名白名单只能包含健康检查，OpenAPI/Swagger 必须显式配置开放"
@@ -492,16 +499,16 @@ class LayerBoundaryArchitectureTest {
         );
 
         assertTrue(
-                Files.readString(securityProperties, StandardCharsets.UTF_8).contains("OPAQUE"),
+                ProjectModel.codeWithoutComments(securityProperties).contains("OPAQUE"),
                 "资源服务器必须支持 OPAQUE token 类型"
         );
         assertTrue(
-                Files.readString(securityAutoConfiguration, StandardCharsets.UTF_8).contains("opaqueToken("),
+                ProjectModel.codeWithoutComments(securityAutoConfiguration).contains("opaqueToken("),
                 "安全自动装配必须支持 opaque token introspection"
         );
         assertTrue(Files.exists(gatewayFilter), "Gateway 必须提供 opaque token introspection 鉴权过滤器");
         assertTrue(
-                Files.readString(authorizationCustomizer, StandardCharsets.UTF_8).contains("customizeOpaque"),
+                ProjectModel.codeWithoutComments(authorizationCustomizer).contains("customizeOpaque"),
                 "授权服务器必须把用户、租户、角色和权限写入 reference token claim"
         );
     }
@@ -534,16 +541,17 @@ class LayerBoundaryArchitectureTest {
         assertTrue(Files.exists(dataScopeRoot.resolve("DataScopeRequest.java")), "安全核心必须提供数据权限请求上下文");
         assertTrue(Files.exists(dataScopeAuthorizationService), "安全核心必须提供数据权限授权服务");
         assertTrue(
-                Files.readString(permissionService, StandardCharsets.UTF_8).contains("PermissionAuthorizationService"),
+                ProjectModel.codeWithoutComments(permissionService).contains("PermissionAuthorizationService"),
                 "默认 @Permission 校验必须复用通用授权服务"
         );
         assertTrue(
-                Files.readString(dataScopeProvider, StandardCharsets.UTF_8).contains("DataScopeRequest"),
+                ProjectModel.codeWithoutComments(dataScopeProvider).contains("DataScopeRequest"),
                 "MyBatis 数据权限 Provider 必须支持完整数据权限请求"
         );
+        String securityAuto = ProjectModel.codeWithoutComments(autoConfiguration);
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("AuthorizationManager")
-                        && Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("RbacAuthorizationPolicy"),
+                securityAuto.contains("AuthorizationManager")
+                        && securityAuto.contains("RbacAuthorizationPolicy"),
                 "安全自动装配必须注册默认 RBAC 策略和 AuthorizationManager"
         );
     }
@@ -553,24 +561,20 @@ class LayerBoundaryArchitectureTest {
      */
     @Test
     void examplesShouldProvideRunnableServiceChainAndDependOnStartersOnly() throws IOException {
-        Path examplesPom = projectRoot().resolve("chaos-examples/pom.xml");
-        String modules = Files.readString(examplesPom, StandardCharsets.UTF_8);
+        ProjectModel project = ProjectModel.load();
         List<String> violations = new ArrayList<>();
-
         assertTrue(
-                modules.contains("example-auth-server")
-                        && modules.contains("example-gateway")
-                        && modules.contains("example-order-service"),
-                "示例工程必须包含 auth-server、gateway、order-service 三个模块"
+                project.modules().keySet().containsAll(List.of(
+                        "example-auth-server", "example-gateway", "example-order-api", "example-order-service")),
+                "示例工程必须包含 auth-server、gateway、order-api、order-service 模块"
         );
 
-        for (Path pom : List.of(
-                projectRoot().resolve("chaos-examples/example-auth-server/pom.xml"),
-                projectRoot().resolve("chaos-examples/example-gateway/pom.xml"),
-                projectRoot().resolve("chaos-examples/example-order-service/pom.xml"))) {
-            String source = Files.readString(pom, StandardCharsets.UTF_8);
-            if (source.contains("-autoconfigure")) {
-                violations.add(projectRoot().relativize(pom).toString());
+        for (String example : List.of("example-auth-server", "example-gateway", "example-order-api", "example-order-service")) {
+            ProjectModel.Module module = project.module(example);
+            boolean directAutoConfigure = module.dependencies().stream()
+                    .anyMatch(dep -> dep.artifactId().endsWith("-autoconfigure"));
+            if (directAutoConfigure) {
+                violations.add(module.path());
             }
         }
 
@@ -602,7 +606,7 @@ class LayerBoundaryArchitectureTest {
         Path properties = projectRoot().resolve(
                 "chaos-data/chaos-mybatis/src/main/java/com/chaos/mybatis/tenant/ChaosMybatisProperties.java"
         );
-        String source = Files.readString(properties, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(properties);
 
         assertTrue(
                 source.contains("emptyConditionBehavior = EmptyConditionBehavior.DENY"),
@@ -621,26 +625,24 @@ class LayerBoundaryArchitectureTest {
         Path autoConfiguration = projectRoot().resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/mybatis/ChaosMybatisAutoConfiguration.java"
         );
-        // 租户 SQL 改写逻辑已从自动装配匿名类抽取为 chaos-mybatis 中可单测的 ChaosTenantLineHandler。
         Path tenantLineHandler = projectRoot().resolve(
                 "chaos-data/chaos-mybatis/src/main/java/com/chaos/mybatis/tenant/ChaosTenantLineHandler.java"
         );
-        String handlerSource = Files.readString(tenantLineHandler, StandardCharsets.UTF_8);
+        String handlerSource = ProjectModel.codeWithoutComments(tenantLineHandler);
 
         assertTrue(
-                Files.readString(properties, StandardCharsets.UTF_8)
+                ProjectModel.codeWithoutComments(properties)
                         .contains("missingTenantBehavior = MissingTenantBehavior.DENY"),
                 "租户缺失默认策略必须是 DENY"
         );
         assertTrue(
                 handlerSource.contains("MissingTenantBehavior.DENY")
-                        // ChaosDiagnosticException 继承 IllegalStateException，并附带"问题 / 原因 / 怎么修"。
                         && (handlerSource.contains("throw new IllegalStateException")
                         || handlerSource.contains("throw new ChaosDiagnosticException")),
                 "MyBatis 租户 SQL 改写必须在租户缺失且 DENY 时 fail-fast 拒绝"
         );
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("new ChaosTenantLineHandler("),
+                ProjectModel.codeWithoutComments(autoConfiguration).contains("new ChaosTenantLineHandler("),
                 "MyBatis 自动装配必须使用 ChaosTenantLineHandler 注册租户拦截器"
         );
     }
@@ -662,38 +664,36 @@ class LayerBoundaryArchitectureTest {
 
         assertTrue(Files.exists(matcher), "Gateway 黑名单必须提供 CIDR 匹配能力");
         assertTrue(Files.exists(coreResolver), "客户端 IP 解析算法必须统一在 chaos-core 中实现");
-        String resolverSource = Files.readString(resolver, StandardCharsets.UTF_8);
+        String resolverSource = ProjectModel.codeWithoutComments(resolver);
         assertTrue(resolverSource.contains("X-Forwarded-For"), "Gateway 客户端 IP 解析必须支持 X-Forwarded-For");
         assertTrue(resolverSource.contains("ForwardedClientIpResolver"), "Gateway 客户端 IP 解析必须复用 chaos-core 算法");
     }
 
     /**
      * Gateway 错误响应体的字段必须与 {@code Result} 记录完全一致。
-     *
-     * <p>网关是响应式栈、不依赖 chaos-web，无法复用 {@code Result}，只能手写同结构 JSON 模板。
-     * 于是 {@code Result} 增删字段时网关会静默漂移，同一个调用方在"被网关拒绝"和"被服务拒绝"两种情况下
-     * 拿到的响应结构不同。这里解析两边的字段名逐一比对。</p>
-     *
-     * <p>原实现只断言源码文本里出现过 {@code "traceId"} 这四个字符——一句注释就能让它通过，
-     * 既不校验字段集合，也不校验 JSON 能否解析。</p>
      */
     @Test
     void gatewayErrorResponseShouldMatchResultShape() throws IOException {
         Set<String> resultFields = recordComponents(projectRoot().resolve(
                 "chaos-web/src/main/java/com/chaos/web/result/Result.java"));
+        Set<String> apiResultFields = recordComponents(projectRoot().resolve(
+                "chaos-foundation/chaos-core/src/main/java/com/chaos/core/result/DefaultApiResult.java"));
         Set<String> gatewayFields = jsonTemplateFields(projectRoot().resolve(
+                "chaos-foundation/chaos-core/src/main/java/com/chaos/core/result/ApiResultJson.java"));
+        String gatewayWriter = ProjectModel.codeWithoutComments(projectRoot().resolve(
                 "chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/GatewayErrorResponseWriter.java"));
 
         assertFalse(resultFields.isEmpty(), "未能解析出 Result 的记录组件");
+        assertEquals(resultFields, apiResultFields,
+                "DefaultApiResult 字段必须与 Result 完全一致，实际 Result=" + resultFields + "，DefaultApiResult=" + apiResultFields);
         assertEquals(resultFields, gatewayFields,
-                "Gateway 错误响应字段必须与 Result 完全一致，实际 Result=" + resultFields + "，Gateway=" + gatewayFields);
+                "ApiResultJson 字段必须与 Result 完全一致，实际 Result=" + resultFields + "，ApiResultJson=" + gatewayFields);
+        assertTrue(gatewayWriter.contains("ApiResultJson.failure("),
+                "GatewayErrorResponseWriter 必须复用 chaos-core 的 ApiResultJson 输出错误响应");
     }
 
-    /**
-     * 解析 record 的组件名。
-     */
     private static Set<String> recordComponents(Path recordSource) throws IOException {
-        String source = Files.readString(recordSource, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(recordSource);
         Matcher header = Pattern.compile("public record \\w+<?[^>]*>?\\(([^)]*)\\)", Pattern.DOTALL).matcher(source);
         assertTrue(header.find(), "未找到 record 声明：" + recordSource);
         Set<String> components = new TreeSet<>();
@@ -706,11 +706,8 @@ class LayerBoundaryArchitectureTest {
         return components;
     }
 
-    /**
-     * 解析 JSON 字符串模板中的字段名。
-     */
     private static Set<String> jsonTemplateFields(Path writerSource) throws IOException {
-        String source = Files.readString(writerSource, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(writerSource);
         Matcher template = Pattern.compile("\\{(\"[a-zA-Z]+\":[^}]*)}").matcher(source);
         assertTrue(template.find(), "未找到 Gateway 错误响应 JSON 模板：" + writerSource);
         Set<String> fields = new TreeSet<>();
@@ -721,44 +718,40 @@ class LayerBoundaryArchitectureTest {
         return fields;
     }
 
-    // 说明：原先这里还有 gatewayShouldProvideRateLimitFilter / gatewayShouldProvideFallbackExceptionHandler
-    // 两个测试，断言方式是"文件存在"加"源码里出现过 RateLimit / Fallback 子串"——一句注释就能让它们通过，
-    // 既不校验限流是否真的生效，也不校验降级是否真的返回 503。
-    // 这两条约束已由 GatewayRateLimitFilterTest、GatewayFallbackExceptionHandlerTest、
-    // GatewayErrorResponseWriterTest 以真实请求断言覆盖，这里不再重复一份更弱的版本。
-
     /**
      * Gateway Nacos 动态路由必须保持为可选扩展，避免核心 Gateway 强依赖 Nacos。
      */
     @Test
     void gatewayNacosRoutesShouldStayOptionalExtension() throws IOException {
         Path root = projectRoot();
-        Path gatewaySourceRoot = root.resolve("chaos-gateway/chaos-gateway/src/main/java");
         Path gatewayNacosRoot = root.resolve("chaos-gateway/chaos-gateway-nacos");
         Path autoConfiguration = root.resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/gateway/nacos/ChaosGatewayNacosAutoConfiguration.java"
         );
-        Path starter = root.resolve("chaos-starters/chaos-gateway-nacos-starter/pom.xml");
         List<String> violations = new ArrayList<>();
 
-        for (Path javaFile : javaFiles(gatewaySourceRoot)) {
-            String source = Files.readString(javaFile, StandardCharsets.UTF_8);
-            if (source.contains("com.alibaba.nacos") || source.contains("com.alibaba.cloud.nacos")) {
-                violations.add(root.relativize(javaFile).toString());
+        ProjectModel project = ProjectModel.load();
+        for (Path javaFile : ProjectModel.mainSources(project.module("chaos-gateway"))) {
+            boolean importsNacos = ProjectModel.imports(javaFile).stream()
+                    .anyMatch(imported -> imported.startsWith("com.alibaba.nacos")
+                            || imported.startsWith("com.alibaba.cloud.nacos"));
+            if (importsNacos) {
+                violations.add(project.relative(javaFile));
             }
         }
 
         assertTrue(violations.isEmpty(), () -> "chaos-gateway 核心不得依赖 Nacos:\n" + String.join("\n", violations));
         assertTrue(Files.exists(gatewayNacosRoot), "必须提供独立 chaos-gateway-nacos 扩展模块");
+        String autoSource = ProjectModel.codeWithoutComments(autoConfiguration);
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("NacosRouteDefinitionRepository")
-                        && Files.readString(autoConfiguration, StandardCharsets.UTF_8)
-                        .contains("beforeName = \"org.springframework.cloud.gateway.config.GatewayAutoConfiguration\""),
+                autoSource.contains("NacosRouteDefinitionRepository")
+                        && autoSource.contains("beforeName = \"org.springframework.cloud.gateway.config.GatewayAutoConfiguration\""),
                 "Gateway Nacos 自动装配必须注册 Nacos 路由仓库，并先于 Gateway 默认路由仓库执行"
         );
+        List<ProjectModel.Dependency> starterDeps = project.module("chaos-gateway-nacos-starter").dependencies();
         assertTrue(
-                Files.readString(starter, StandardCharsets.UTF_8).contains("spring-cloud-starter-alibaba-nacos-config")
-                        && Files.readString(starter, StandardCharsets.UTF_8).contains("chaos-gateway-starter"),
+                starterDeps.stream().anyMatch(dep -> "spring-cloud-starter-alibaba-nacos-config".equals(dep.artifactId()))
+                        && starterDeps.stream().anyMatch(dep -> "chaos-gateway-starter".equals(dep.artifactId())),
                 "Gateway Nacos starter 必须聚合 Gateway starter 和 Nacos Config starter"
         );
     }
@@ -785,7 +778,7 @@ class LayerBoundaryArchitectureTest {
         List<String> violations = new ArrayList<>();
 
         for (Path sourceFile : sources) {
-            String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
+            String source = ProjectModel.codeWithoutComments(sourceFile);
             if (!source.contains("AuditEventPublisher") || !source.contains(".publish(")) {
                 violations.add(projectRoot().relativize(sourceFile).toString());
             }
@@ -816,7 +809,7 @@ class LayerBoundaryArchitectureTest {
         List<String> violations = new ArrayList<>();
 
         for (Path sourceFile : sources) {
-            String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
+            String source = ProjectModel.codeWithoutComments(sourceFile);
             if (!source.contains("AuditEventPublisher") || !source.contains(".publish(")) {
                 violations.add(projectRoot().relativize(sourceFile).toString());
             }
@@ -833,7 +826,7 @@ class LayerBoundaryArchitectureTest {
         Path sourceFile = projectRoot().resolve(
                 "chaos-security/chaos-security-redis/src/main/java/com/chaos/security/redis/authorization/RedisOAuth2AuthorizationService.java"
         );
-        String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(sourceFile);
 
         assertTrue(
                 source.contains("OAuth2Authorization existing = findById(authorization.getId())")
@@ -853,8 +846,7 @@ class LayerBoundaryArchitectureTest {
         Path schema = projectRoot().resolve(
                 "chaos-audit/chaos-audit-jdbc/src/main/resources/db/chaos-audit-schema.sql"
         );
-        Path starter = projectRoot().resolve("chaos-starters/chaos-audit-jdbc-starter/pom.xml");
-        String source = Files.readString(publisher, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(publisher);
 
         assertTrue(
                 source.contains("implements AuditEventPublisher") && source.contains("JdbcOperations"),
@@ -865,9 +857,10 @@ class LayerBoundaryArchitectureTest {
                 Files.readString(schema, StandardCharsets.UTF_8).contains("chaos_audit_event"),
                 "JDBC 审计建表脚本必须创建 chaos_audit_event"
         );
+        List<ProjectModel.Dependency> starterDeps = ProjectModel.load().module("chaos-audit-jdbc-starter").dependencies();
         assertTrue(
-                Files.readString(starter, StandardCharsets.UTF_8).contains("<artifactId>chaos-autoconfigure</artifactId>")
-                        && Files.readString(starter, StandardCharsets.UTF_8).contains("<artifactId>chaos-audit-jdbc</artifactId>"),
+                starterDeps.stream().anyMatch(dep -> dep.isChaos() && "chaos-autoconfigure".equals(dep.artifactId()))
+                        && starterDeps.stream().anyMatch(dep -> dep.isChaos() && "chaos-audit-jdbc".equals(dep.artifactId())),
                 "JDBC 审计 starter 必须聚合统一自动装配模块与 JDBC 审计库"
         );
     }
@@ -880,7 +873,7 @@ class LayerBoundaryArchitectureTest {
         Path autoConfiguration = projectRoot().resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/audit/jdbc/ChaosAuditJdbcAutoConfiguration.java"
         );
-        String source = Files.readString(autoConfiguration, StandardCharsets.UTF_8);
+        String source = ProjectModel.codeWithoutComments(autoConfiguration);
         String annotation = autoConfigurationAnnotation(source);
 
         assertTrue(
@@ -906,9 +899,9 @@ class LayerBoundaryArchitectureTest {
         Path context = tenantRoot.resolve("TenantContext.java");
 
         assertTrue(Files.exists(provider), "租户模块必须提供 TenantStatusProvider 端口");
-        assertTrue(Files.readString(status, StandardCharsets.UTF_8).contains("FROZEN"), "租户状态必须支持冻结状态");
+        assertTrue(ProjectModel.codeWithoutComments(status).contains("FROZEN"), "租户状态必须支持冻结状态");
         assertTrue(
-                Files.readString(context, StandardCharsets.UTF_8).contains("RequestContext.setTenantId"),
+                ProjectModel.codeWithoutComments(context).contains("RequestContext.setTenantId"),
                 "租户上下文必须和 RequestContext 租户 ID 保持一致"
         );
     }
@@ -926,13 +919,14 @@ class LayerBoundaryArchitectureTest {
         );
 
         assertTrue(Files.exists(filter), "Gateway 必须提供租户状态过滤器");
+        String filterSource = ProjectModel.codeWithoutComments(filter);
         assertTrue(
-                Files.readString(filter, StandardCharsets.UTF_8).contains("TenantAccessValidator")
-                        && Files.readString(filter, StandardCharsets.UTF_8).contains("GatewayErrorResponseWriter.forbidden"),
+                filterSource.contains("TenantAccessValidator")
+                        && filterSource.contains("GatewayErrorResponseWriter.forbidden"),
                 "Gateway 租户状态过滤器必须通过 TenantAccessValidator 决策并用 403 拒绝"
         );
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("TenantGatewayFilter"),
+                ProjectModel.codeWithoutComments(autoConfiguration).contains("TenantGatewayFilter"),
                 "Gateway 自动装配必须注册租户状态过滤器"
         );
     }
@@ -950,7 +944,7 @@ class LayerBoundaryArchitectureTest {
         assertTrue(Files.exists(repository), "MQ 核心必须提供 outbox 仓储端口");
         assertTrue(Files.exists(dispatcher), "MQ 核心必须提供可靠消息派发器");
         assertTrue(
-                Files.readString(status, StandardCharsets.UTF_8).contains("DEAD_LETTER"),
+                ProjectModel.codeWithoutComments(status).contains("DEAD_LETTER"),
                 "可靠消息状态必须包含死信状态"
         );
     }
@@ -975,41 +969,46 @@ class LayerBoundaryArchitectureTest {
         Path autoConfiguration = root.resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/mq/ChaosMqAutoConfiguration.java"
         );
-        Path starter = root.resolve("chaos-starters/chaos-mq-starter/pom.xml");
 
+        Element mqParentXml = ProjectModel.parseXml(mqParent);
+        List<String> mqSubmodules = ProjectModel.elements(mqParentXml, "module").stream()
+                .map(el -> el.getTextContent().trim())
+                .toList();
+        assertTrue(mqSubmodules.contains("chaos-mq-jdbc"), "MQ 聚合模块必须包含 chaos-mq-jdbc");
         assertTrue(
-                Files.readString(mqParent, StandardCharsets.UTF_8).contains("chaos-mq-jdbc"),
-                "MQ 聚合模块必须包含 chaos-mq-jdbc"
-        );
-        assertTrue(
-                Files.readString(repositoryPort, StandardCharsets.UTF_8).contains("claimDueMessages"),
+                ProjectModel.codeWithoutComments(repositoryPort).contains("claimDueMessages"),
                 "outbox 仓储端口必须提供 claimDueMessages 以支持多实例派发"
         );
         assertTrue(
-                Files.readString(dispatcher, StandardCharsets.UTF_8).contains("repository.claimDueMessages"),
+                ProjectModel.codeWithoutComments(dispatcher).contains("repository.claimDueMessages"),
                 "可靠消息派发器必须通过 claimDueMessages 获取消息"
         );
         assertTrue(Files.exists(jdbcRepository), "MQ 必须提供 JDBC outbox 仓储实现");
+        String jdbcSource = ProjectModel.codeWithoutComments(jdbcRepository);
         assertTrue(
-                Files.readString(jdbcRepository, StandardCharsets.UTF_8).contains("implements OutboxMessageRepository")
-                        && Files.readString(jdbcRepository, StandardCharsets.UTF_8).contains("JdbcOperations")
-                        && Files.readString(jdbcRepository, StandardCharsets.UTF_8).contains("claim_owner"),
+                jdbcSource.contains("implements OutboxMessageRepository")
+                        && jdbcSource.contains("JdbcOperations")
+                        && jdbcSource.contains("claim_owner"),
                 "JDBC outbox 仓储必须实现 OutboxMessageRepository、通过 JdbcOperations 落库并支持 claim_owner"
         );
+        String schemaSql = Files.readString(schema, StandardCharsets.UTF_8);
         assertTrue(
-                Files.readString(schema, StandardCharsets.UTF_8).contains("chaos_mq_outbox")
-                        && Files.readString(schema, StandardCharsets.UTF_8).contains("claimed_at")
-                        && Files.readString(schema, StandardCharsets.UTF_8).contains("claim_owner"),
+                schemaSql.contains("chaos_mq_outbox")
+                        && schemaSql.contains("claimed_at")
+                        && schemaSql.contains("claim_owner"),
                 "MQ JDBC 模块必须提供 outbox 建表脚本和 claim 字段"
         );
+        String mqAutoSource = ProjectModel.codeWithoutComments(autoConfiguration);
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("JdbcOutboxMessageRepository")
-                        && Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("ConditionalOnBean(JdbcOperations.class)"),
+                mqAutoSource.contains("JdbcOutboxMessageRepository")
+                        && mqAutoSource.contains("ConditionalOnBean(JdbcOperations.class)"),
                 "MQ 自动装配必须在存在 JdbcOperations 时注册 JDBC outbox"
         );
+        ProjectModel project = ProjectModel.load();
         assertTrue(
-                Files.readString(starter, StandardCharsets.UTF_8).contains("chaos-mq-jdbc"),
-                "MQ starter 必须聚合 chaos-mq-jdbc"
+                project.module("chaos-mq-jdbc-starter").dependencies().stream()
+                        .anyMatch(dep -> dep.isChaos() && "chaos-mq-jdbc".equals(dep.artifactId())),
+                "MQ JDBC starter 必须聚合 chaos-mq-jdbc"
         );
     }
 
@@ -1025,7 +1024,7 @@ class LayerBoundaryArchitectureTest {
                     .filter(path -> path.getFileName().toString().endsWith("Properties.java"))
                     .filter(path -> path.toString().contains("/src/main/java/"))
                     .toList()) {
-                String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
+                String source = ProjectModel.codeWithoutComments(sourceFile);
                 if (source.contains("@ConfigurationProperties") && !source.contains("@Validated")) {
                     violations.add(projectRoot().relativize(sourceFile).toString());
                 }
@@ -1047,11 +1046,11 @@ class LayerBoundaryArchitectureTest {
                     .filter(path -> path.getFileName().toString().endsWith("Properties.java"))
                     .filter(path -> path.toString().contains("/src/main/java/"))
                     .toList()) {
-                String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
+                String source = ProjectModel.codeWithoutComments(sourceFile);
                 if (!source.contains("@ConfigurationProperties")) {
                     continue;
                 }
-                List<String> lines = Files.readAllLines(sourceFile, StandardCharsets.UTF_8);
+                List<String> lines = source.lines().toList();
                 for (int i = 0; i < lines.size(); i++) {
                     String annotation = lines.get(i).trim();
                     if (!Objects.equals(annotation, "@Valid") && !annotation.startsWith("@Valid(")) {
@@ -1084,37 +1083,37 @@ class LayerBoundaryArchitectureTest {
 
     /**
      * 承载配置属性的模块必须输出配置元数据。
-     *
-     * <p>{@code @ConfigurationProperties} 类既可能位于 autoconfigure 模块，也可能位于 chaos-web、chaos-security
-     * 等库模块。configuration processor 只会为当前编译模块中的类生成元数据，所以必须在“类所在的模块”引入，
-     * 而不是只在引用它的 autoconfigure 模块引入。</p>
      */
     @Test
     void modulesWithConfigurationPropertiesShouldUseConfigurationProcessor() throws IOException {
         List<String> violations = new ArrayList<>();
         Path root = projectRoot();
+        ProjectModel project = ProjectModel.load();
         for (Path pomFile : pomFiles(root)) {
-            Path module = pomFile.getParent();
-            String relativeModule = root.relativize(module).toString();
+            Path moduleDir = pomFile.getParent();
+            String relativeModule = root.relativize(moduleDir).toString();
             if (relativeModule.startsWith("chaos-examples")) {
                 continue;
             }
-            Path javaRoot = module.resolve("src/main/java");
+            Path javaRoot = moduleDir.resolve("src/main/java");
             boolean hasProperties = Files.exists(javaRoot) && javaFiles(javaRoot).stream()
-                    .map(path -> {
+                    .anyMatch(path -> {
                         try {
-                            return Files.readString(path, StandardCharsets.UTF_8);
+                            return ProjectModel.codeWithoutComments(path).contains("@ConfigurationProperties");
                         } catch (IOException ex) {
                             throw new IllegalStateException(ex);
                         }
-                    })
-                    .anyMatch(source -> source.contains("@ConfigurationProperties"));
+                    });
             if (!hasProperties) {
                 continue;
             }
-            Path pom = module.resolve("pom.xml");
-            if (!Files.readString(pom, StandardCharsets.UTF_8).contains("spring-boot-configuration-processor")) {
-                violations.add(projectRoot().relativize(pom).toString());
+            Element pomXml = ProjectModel.parseXml(pomFile);
+            String artifactId = ProjectModel.directChildText(pomXml, "artifactId");
+            ProjectModel.Module mod = project.modules().get(artifactId);
+            boolean hasProcessor = mod != null && mod.dependencies().stream()
+                    .anyMatch(dep -> "spring-boot-configuration-processor".equals(dep.artifactId()));
+            if (!hasProcessor) {
+                violations.add(projectRoot().relativize(pomFile).toString());
             }
         }
 
@@ -1136,26 +1135,27 @@ class LayerBoundaryArchitectureTest {
         Path webFilter = projectRoot().resolve("chaos-web/src/main/java/com/chaos/web/filter/TraceFilter.java");
         Path gatewayFilter = projectRoot().resolve("chaos-gateway/chaos-gateway/src/main/java/com/chaos/gateway/filter/GatewayTraceFilter.java");
 
+        String headersCode = ProjectModel.codeWithoutComments(headers);
         assertTrue(
-                Files.readString(headers, StandardCharsets.UTF_8).contains("TRACEPARENT")
-                        && Files.readString(headers, StandardCharsets.UTF_8).contains("TRACESTATE")
-                        && Files.readString(headers, StandardCharsets.UTF_8).contains("BAGGAGE"),
+                headersCode.contains("TRACEPARENT")
+                        && headersCode.contains("TRACESTATE")
+                        && headersCode.contains("BAGGAGE"),
                 "框架标准请求头必须包含 W3C traceparent、tracestate 和 baggage"
         );
         assertTrue(
-                Files.readString(traceHeaders, StandardCharsets.UTF_8).contains("ChaosHeaders.TRACEPARENT"),
+                ProjectModel.codeWithoutComments(traceHeaders).contains("ChaosHeaders.TRACEPARENT"),
                 "TraceHeaders 出站传播必须包含 traceparent"
         );
         assertTrue(
-                Files.readString(observationFilter, StandardCharsets.UTF_8).contains("ObservationFilter"),
+                ProjectModel.codeWithoutComments(observationFilter).contains("ObservationFilter"),
                 "Monitor 模块必须提供 Micrometer Observation 兼容过滤器"
         );
         assertTrue(
-                Files.readString(webFilter, StandardCharsets.UTF_8).contains("ChaosHeaders.TRACEPARENT"),
+                ProjectModel.codeWithoutComments(webFilter).contains("ChaosHeaders.TRACEPARENT"),
                 "Web 入口过滤器必须解析 traceparent"
         );
         assertTrue(
-                Files.readString(gatewayFilter, StandardCharsets.UTF_8).contains("W3cTraceContext"),
+                ProjectModel.codeWithoutComments(gatewayFilter).contains("W3cTraceContext"),
                 "Gateway 入口过滤器必须支持 W3C Trace Context"
         );
     }
@@ -1165,16 +1165,20 @@ class LayerBoundaryArchitectureTest {
      */
     @Test
     void testcontainersShouldRunOnlyInIntegrationProfile() throws IOException {
-        Path parentPom = projectRoot().resolve("pom.xml");
-        String parent = Files.readString(parentPom, StandardCharsets.UTF_8);
+        Element parentXml = ProjectModel.parseXml(projectRoot().resolve("pom.xml"));
+        Element integrationProfile = ProjectModel.elements(parentXml, "profile").stream()
+                .filter(p -> "chaos-integration-test".equals(ProjectModel.directChildText(p, "id")))
+                .findFirst()
+                .orElse(null);
         List<String> violations = new ArrayList<>();
 
-        assertTrue(
-                parent.contains("<id>chaos-integration-test</id>")
-                        && parent.contains("src/integration-test/java")
-                        && parent.contains("maven-failsafe-plugin"),
-                "父 POM 必须提供 chaos-integration-test profile 并通过 Failsafe 运行集成测试"
-        );
+        assertTrue(integrationProfile != null, "父 POM 必须提供 chaos-integration-test profile");
+        boolean hasIntegrationSourceDir = ProjectModel.elements(integrationProfile, "source").stream()
+                .anyMatch(el -> el.getTextContent().trim().contains("src/integration-test/java"));
+        boolean hasFailsafePlugin = ProjectModel.elements(integrationProfile, "plugin").stream()
+                .anyMatch(p -> "maven-failsafe-plugin".equals(ProjectModel.directChildText(p, "artifactId")));
+        assertTrue(hasIntegrationSourceDir && hasFailsafePlugin,
+                "chaos-integration-test profile 必须挂载 src/integration-test/java 并使用 maven-failsafe-plugin");
 
         try (Stream<Path> paths = Files.walk(projectRoot())) {
             for (Path sourceFile : paths
@@ -1183,8 +1187,9 @@ class LayerBoundaryArchitectureTest {
                     .filter(path -> path.toString().contains("/src/test/java/"))
                     .filter(path -> !Objects.equals(path.getFileName().toString(), "LayerBoundaryArchitectureTest.java"))
                     .toList()) {
-                String source = Files.readString(sourceFile, StandardCharsets.UTF_8);
-                if (source.contains("org.testcontainers")) {
+                boolean importsTestcontainers = ProjectModel.imports(sourceFile).stream()
+                        .anyMatch(imp -> imp.startsWith("org.testcontainers"));
+                if (importsTestcontainers) {
                     violations.add(projectRoot().relativize(sourceFile).toString());
                 }
             }
@@ -1198,34 +1203,43 @@ class LayerBoundaryArchitectureTest {
      */
     @Test
     void releaseGovernanceShouldProvideReleaseProfileAndApiCompatibilityGate() throws IOException {
-        Path parentPom = projectRoot().resolve("pom.xml");
-        String parent = Files.readString(parentPom, StandardCharsets.UTF_8);
+        Element parentXml = ProjectModel.parseXml(projectRoot().resolve("pom.xml"));
+        Element releaseProfile = ProjectModel.elements(parentXml, "profile").stream()
+                .filter(p -> "chaos-release".equals(ProjectModel.directChildText(p, "id")))
+                .findFirst()
+                .orElse(null);
+        assertTrue(releaseProfile != null, "父 POM 必须提供 chaos-release profile");
 
+        Element buildPlugins = ProjectModel.elements(parentXml, "pluginManagement").stream()
+                .findFirst()
+                .orElse(parentXml);
+        List<String> allPlugins = ProjectModel.elements(parentXml, "plugin").stream()
+                .map(p -> ProjectModel.directChildText(p, "artifactId"))
+                .filter(Objects::nonNull)
+                .toList();
+        boolean hasDependencyConvergence = !ProjectModel.elements(parentXml, "dependencyConvergence").isEmpty();
+        boolean hasRequirePluginVersions = !ProjectModel.elements(releaseProfile, "requirePluginVersions").isEmpty();
+        Element properties = ProjectModel.directChild(parentXml, "properties");
+
+        assertTrue(hasDependencyConvergence && hasRequirePluginVersions,
+                "父 POM 必须提供 chaos-release profile，并启用依赖收敛和插件版本检查");
         assertTrue(
-                parent.contains("<id>chaos-release</id>")
-                        && parent.contains("<dependencyConvergence/>")
-                        && parent.contains("<requirePluginVersions/>"),
-                "父 POM 必须提供 chaos-release profile，并启用依赖收敛和插件版本检查"
+                allPlugins.contains("maven-source-plugin")
+                        && allPlugins.contains("maven-javadoc-plugin")
+                        && allPlugins.contains("maven-gpg-plugin")
+                        && allPlugins.contains("japicmp-maven-plugin"),
+                "发布 profile 必须配置 source jar、javadoc jar、GPG 签名和 japicmp API 兼容插件"
         );
         assertTrue(
-                parent.contains("maven-source-plugin")
-                        && parent.contains("maven-javadoc-plugin")
-                        && parent.contains("maven-gpg-plugin"),
-                "发布 profile 必须附加 source jar、javadoc jar 和 GPG 签名入口"
-        );
-        assertTrue(
-                parent.contains("japicmp-maven-plugin")
-                        && parent.contains("chaos.api.check.skip")
-                        && parent.contains("chaos.release.compareVersion"),
-                "父 POM 必须提供可配置的 API 兼容检查入口"
+                properties != null
+                        && ProjectModel.directChildText(properties, "chaos.api.check.skip") != null
+                        && ProjectModel.directChildText(properties, "chaos.release.compareVersion") != null,
+                "父 POM 必须提供可配置的 API 兼容检查开关和对比基线属性"
         );
     }
 
     /**
      * 公共 BOM 必须与真实模块双向一致。
-     *
-     * <p>正向：所有对外 artifact 都要在 BOM 中登记，避免业务方手写内部模块版本；
-     * 反向：BOM 不得声明仓库中不存在的 artifact（例如历史规划但未落地的模块），否则业务方 import 后解析失败。</p>
      */
     @Test
     void publicBomShouldManageAllPublishedArtifacts() throws IOException {
@@ -1244,60 +1258,76 @@ class LayerBoundaryArchitectureTest {
         assertTrue(unknown.isEmpty(), () -> "chaos-dependencies BOM 声明了不存在或不发布的 artifact:\n" + String.join("\n", unknown));
     }
 
-
     /**
      * 业务应用推荐的 chaos-boot-parent 必须只提供依赖版本与应用构建约定，不得夹带框架自身的发布治理。
-     *
-     * <ul>
-     *     <li>以 chaos-dependencies 为 parent：依赖版本仍只有一份来源；</li>
-     *     <li>不继承 chaos-parent：japicmp、JaCoCo、GPG、enforcer 等框架治理插件不能进入业务应用构建；</li>
-     *     <li>预置编译参数、spring-boot repackage，flatten 只对自身生效（inherited=false）；</li>
-     *     <li>BOM 自身的 flatten 同样不可继承，否则会通过 chaos-boot-parent 传给业务应用。</li>
-     * </ul>
      */
     @Test
     void bootParentShouldOnlyProvideApplicationBuildConventions() throws IOException {
         Path root = projectRoot();
-        // 去掉 XML 注释：chaos-boot-parent 的注释里有 <parent> 用法示例，不能参与结构判断。
-        String bootParent = Files.readString(root.resolve("chaos-boot-parent/pom.xml"), StandardCharsets.UTF_8)
-                .replaceAll("(?s)<!--.*?-->", "");
-        String bom = Files.readString(root.resolve("chaos-dependencies/pom.xml"), StandardCharsets.UTF_8)
-                .replaceAll("(?s)<!--.*?-->", "");
-        String parentBlock = bootParent.substring(bootParent.indexOf("<parent>"), bootParent.indexOf("</parent>"));
-        String bootParentFlatten = bootParent.substring(bootParent.indexOf("<artifactId>flatten-maven-plugin</artifactId>"));
-        String bomFlatten = bom.substring(bom.indexOf("<artifactId>flatten-maven-plugin</artifactId>"));
+        Element bootParentXml = ProjectModel.parseXml(root.resolve("chaos-boot-parent/pom.xml"));
+        Element bomXml = ProjectModel.parseXml(root.resolve("chaos-dependencies/pom.xml"));
 
-        assertTrue(parentBlock.contains("<artifactId>chaos-dependencies</artifactId>"),
-                "chaos-boot-parent 必须以 chaos-dependencies 为 parent");
-        assertTrue(!bootParent.contains("<dependencyManagement>") && !bootParent.contains("<dependencies>"),
-                "chaos-boot-parent 不得声明依赖或重复维护版本");
-        assertTrue(Stream.of("japicmp", "jacoco", "maven-gpg-plugin", "maven-enforcer-plugin", "central-publishing")
-                        .noneMatch(bootParent::contains),
-                "chaos-boot-parent 不得包含框架发布治理插件");
-        assertTrue(bootParent.contains("<parameters>true</parameters>")
-                        && bootParent.contains("<goal>repackage</goal>")
-                        && bootParent.contains("<release>${java.version}</release>"),
-                "chaos-boot-parent 必须预置 -parameters、Java release 与 spring-boot repackage");
-        assertTrue(bootParentFlatten.substring(0, bootParentFlatten.indexOf("</plugin>")).contains("<inherited>false</inherited>")
-                        && bomFlatten.substring(0, bomFlatten.indexOf("</plugin>")).contains("<inherited>false</inherited>"),
-                "chaos-boot-parent 与 chaos-dependencies 的 flatten 插件必须 inherited=false，避免进入业务应用构建");
+        Element bootParentParent = ProjectModel.directChild(bootParentXml, "parent");
+        assertTrue(
+                bootParentParent != null
+                        && "chaos-dependencies".equals(ProjectModel.directChildText(bootParentParent, "artifactId")),
+                "chaos-boot-parent 必须以 chaos-dependencies 为 parent"
+        );
+        assertTrue(
+                ProjectModel.directChild(bootParentXml, "dependencyManagement") == null
+                        && ProjectModel.directChild(bootParentXml, "dependencies") == null,
+                "chaos-boot-parent 不得声明依赖或重复维护版本"
+        );
+
+        List<String> bootPlugins = ProjectModel.elements(bootParentXml, "plugin").stream()
+                .map(p -> ProjectModel.directChildText(p, "artifactId"))
+                .filter(Objects::nonNull)
+                .toList();
+        assertTrue(
+                Stream.of("japicmp-maven-plugin", "jacoco-maven-plugin", "maven-gpg-plugin",
+                                "maven-enforcer-plugin", "central-publishing-maven-plugin")
+                        .noneMatch(bootPlugins::contains),
+                "chaos-boot-parent 不得包含框架发布治理插件"
+        );
+        assertTrue(
+                ProjectModel.elements(bootParentXml, "parameters").stream()
+                        .anyMatch(el -> "true".equals(el.getTextContent().trim()))
+                        && ProjectModel.elements(bootParentXml, "goal").stream()
+                        .anyMatch(el -> "repackage".equals(el.getTextContent().trim()))
+                        && ProjectModel.elements(bootParentXml, "release").stream()
+                        .anyMatch(el -> "${java.version}".equals(el.getTextContent().trim())),
+                "chaos-boot-parent 必须预置 -parameters、Java release 与 spring-boot repackage"
+        );
+
+        Element bootFlatten = ProjectModel.elements(bootParentXml, "plugin").stream()
+                .filter(p -> "flatten-maven-plugin".equals(ProjectModel.directChildText(p, "artifactId")))
+                .findFirst().orElse(null);
+        Element bomFlatten = ProjectModel.elements(bomXml, "plugin").stream()
+                .filter(p -> "flatten-maven-plugin".equals(ProjectModel.directChildText(p, "artifactId")))
+                .findFirst().orElse(null);
+        assertTrue(
+                bootFlatten != null && "false".equals(ProjectModel.directChildText(bootFlatten, "inherited"))
+                        && bomFlatten != null && "false".equals(ProjectModel.directChildText(bomFlatten, "inherited")),
+                "chaos-boot-parent 与 chaos-dependencies 的 flatten 插件必须 inherited=false，避免进入业务应用构建"
+        );
     }
 
     /**
      * 依赖版本只允许在 chaos-dependencies 维护一份。
-     *
-     * <p>chaos-dependencies 不继承任何 parent，保证发布出去的 BOM 不夹带构建配置；
-     * 根 POM 以 BOM 为 parent，自身不再声明 dependencyManagement，避免两份清单再次漂移。</p>
      */
     @Test
     void dependencyVersionsShouldHaveSingleSourceOfTruth() throws IOException {
         Path root = projectRoot();
-        String bom = Files.readString(root.resolve("chaos-dependencies/pom.xml"), StandardCharsets.UTF_8);
-        String parent = Files.readString(root.resolve("pom.xml"), StandardCharsets.UTF_8);
+        Element bomXml = ProjectModel.parseXml(root.resolve("chaos-dependencies/pom.xml"));
+        Element parentXml = ProjectModel.parseXml(root.resolve("pom.xml"));
 
-        assertTrue(!bom.contains("<parent>"), "chaos-dependencies 必须是独立 BOM，不得继承 chaos-parent");
+        assertTrue(ProjectModel.directChild(bomXml, "parent") == null,
+                "chaos-dependencies 必须是独立 BOM，不得继承 chaos-parent");
+        Element parentOfRoot = ProjectModel.directChild(parentXml, "parent");
         assertTrue(
-                parent.contains("<artifactId>chaos-dependencies</artifactId>") && !parent.contains("<dependencyManagement>"),
+                parentOfRoot != null
+                        && "chaos-dependencies".equals(ProjectModel.directChildText(parentOfRoot, "artifactId"))
+                        && ProjectModel.directChild(parentXml, "dependencyManagement") == null,
                 "根 POM 必须以 chaos-dependencies 为 parent，且不得重复声明 dependencyManagement"
         );
 
@@ -1306,8 +1336,11 @@ class LayerBoundaryArchitectureTest {
             if (pom.equals(root.resolve("chaos-dependencies/pom.xml"))) {
                 continue;
             }
-            String source = Files.readString(pom, StandardCharsets.UTF_8);
-            if (source.contains("<version>${project.version}</version>")) {
+            Element pomXml = ProjectModel.parseXml(pom);
+            boolean hasProjectVersionDep = ProjectModel.elements(pomXml, "dependency").stream()
+                    .map(d -> ProjectModel.directChildText(d, "version"))
+                    .anyMatch("${project.version}"::equals);
+            if (hasProjectVersionDep) {
                 hardcodedVersions.add(root.relativize(pom) + " -> 框架模块版本应由 BOM 管理");
             }
         }
@@ -1356,34 +1389,37 @@ class LayerBoundaryArchitectureTest {
         );
 
         assertTrue(Files.exists(checker), "授权服务器必须提供生产安全检查器");
+        String checkerSource = ProjectModel.codeWithoutComments(checker);
         assertTrue(
-                Files.readString(checker, StandardCharsets.UTF_8).contains("ApplicationRunner")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("localhost")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("{noop}")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("MEMORY")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("usesGeneratedJwk")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("InMemoryOAuth2AuthorizationService")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("InMemoryOAuth2AuthorizationConsentService")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("InMemoryAuthorizationSessionRegistry")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("NoopJwtRevocationService")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("NoopAuthorizationKickoutService")
-                        && Files.readString(checker, StandardCharsets.UTF_8).contains("NoopAuditEventPublisher"),
+                checkerSource.contains("ApplicationRunner")
+                        && checkerSource.contains("localhost")
+                        && checkerSource.contains("{noop}")
+                        && checkerSource.contains("MEMORY")
+                        && checkerSource.contains("usesGeneratedJwk")
+                        && checkerSource.contains("InMemoryOAuth2AuthorizationService")
+                        && checkerSource.contains("InMemoryOAuth2AuthorizationConsentService")
+                        && checkerSource.contains("InMemoryAuthorizationSessionRegistry")
+                        && checkerSource.contains("NoopJwtRevocationService")
+                        && checkerSource.contains("NoopAuthorizationKickoutService")
+                        && checkerSource.contains("NoopAuditEventPublisher"),
                 "生产安全检查器必须检查 localhost issuer、noop secret、memory client、临时 JWK、内存授权仓储、Noop JWT 撤销、Noop 互踢和空审计"
         );
+        String propsSource = ProjectModel.codeWithoutComments(properties);
         assertTrue(
-                Files.readString(properties, StandardCharsets.UTF_8).contains("ProductionSafety")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("allowMemoryAuthorizationStore")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("allowMemorySessionRegistry")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("allowNoopJwtRevocationService")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("allowNoopKickoutService")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("allowNoopAuditPublisher"),
+                propsSource.contains("ProductionSafety")
+                        && propsSource.contains("allowMemoryAuthorizationStore")
+                        && propsSource.contains("allowMemorySessionRegistry")
+                        && propsSource.contains("allowNoopJwtRevocationService")
+                        && propsSource.contains("allowNoopKickoutService")
+                        && propsSource.contains("allowNoopAuditPublisher"),
                 "授权配置必须暴露 production-safety 配置项"
         );
+        String autoSource = ProjectModel.codeWithoutComments(autoConfiguration);
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("AuthorizationProductionSafetyChecker")
-                        && Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("ObjectProvider<RegisteredClientRepository>")
-                        && Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("ObjectProvider<OAuth2AuthorizationService>")
-                        && Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("ObjectProvider<AuditEventPublisher>"),
+                autoSource.contains("AuthorizationProductionSafetyChecker")
+                        && autoSource.contains("ObjectProvider<RegisteredClientRepository>")
+                        && autoSource.contains("ObjectProvider<OAuth2AuthorizationService>")
+                        && autoSource.contains("ObjectProvider<AuditEventPublisher>"),
                 "授权自动装配必须注册生产安全检查器，并传入实际 Bean Provider"
         );
     }
@@ -1399,13 +1435,14 @@ class LayerBoundaryArchitectureTest {
         Path autoConfiguration = projectRoot().resolve(
                 "chaos-autoconfigure/src/main/java/com/chaos/autoconfigure/storage/ChaosStorageAutoConfiguration.java"
         );
-        String autoConfigurationSource = Files.readString(autoConfiguration, StandardCharsets.UTF_8);
+        String autoConfigurationSource = ProjectModel.codeWithoutComments(autoConfiguration);
+        String storagePropsSource = ProjectModel.codeWithoutComments(properties);
 
         assertTrue(
-                Files.readString(properties, StandardCharsets.UTF_8).contains("Provider")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("NONE")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("OSS")
-                        && Files.readString(properties, StandardCharsets.UTF_8).contains("MINIO"),
+                storagePropsSource.contains("Provider")
+                        && storagePropsSource.contains("NONE")
+                        && storagePropsSource.contains("OSS")
+                        && storagePropsSource.contains("MINIO"),
                 "对象存储必须提供 chaos.storage.provider 显式选择配置"
         );
         assertTrue(
@@ -1438,21 +1475,24 @@ class LayerBoundaryArchitectureTest {
                 "InMemoryIdempotentRepository",
                 "NoopDataScopeProvider"
         );
-        String combinedSources = "";
+        StringBuilder combinedSources = new StringBuilder();
         for (Path autoConfiguration : autoConfigurations) {
-            String source = Files.readString(autoConfiguration, StandardCharsets.UTF_8);
-            combinedSources += source;
+            String source = ProjectModel.codeWithoutComments(autoConfiguration);
+            combinedSources.append(source);
             assertTrue(
                     (source.contains("ProductionSafety.warnUnsafeDefaultBeans")
+                            || source.contains("ProductionSafety.checkUnsafeDefaultBeans")
+                            || source.contains("ProductionSafety.report")
                             || source.contains("ProductionSafetyEnforcer"))
                             && source.contains("SmartInitializingSingleton"),
                     projectRoot().relativize(autoConfiguration)
                             + " 必须注册生产安全检查器，拦截危险默认实现"
             );
         }
+        String allSources = combinedSources.toString();
         for (String requiredUnsafeType : requiredUnsafeTypes) {
             assertTrue(
-                    combinedSources.contains(requiredUnsafeType),
+                    allSources.contains(requiredUnsafeType),
                     "生产安全检查必须覆盖 " + requiredUnsafeType
             );
         }
@@ -1488,25 +1528,27 @@ class LayerBoundaryArchitectureTest {
         );
 
         assertTrue(Files.exists(snapshot), "Trace 模块必须提供上下文快照");
+        String traceCode = ProjectModel.codeWithoutComments(traceContext);
         assertTrue(
-                Files.readString(traceContext, StandardCharsets.UTF_8).contains("TraceContextSnapshot capture()")
-                        && Files.readString(traceContext, StandardCharsets.UTF_8).contains("Scope implements AutoCloseable")
-                        && Files.readString(traceContext, StandardCharsets.UTF_8).contains("Runnable wrap"),
+                traceCode.contains("TraceContextSnapshot capture()")
+                        && traceCode.contains("Scope implements AutoCloseable")
+                        && traceCode.contains("Runnable wrap"),
                 "TraceContext 必须提供 capture、Scope 和 Runnable wrap API"
         );
+        String taskDecoratorCode = ProjectModel.codeWithoutComments(taskDecorator);
         assertTrue(
-                Files.readString(taskDecorator, StandardCharsets.UTF_8).contains("implements TaskDecorator")
-                        && Files.readString(taskDecorator, StandardCharsets.UTF_8).contains("ContextPropagation.wrap"),
+                taskDecoratorCode.contains("implements TaskDecorator")
+                        && taskDecoratorCode.contains("ContextPropagation.wrap"),
                 "Service 模块必须提供 TaskDecorator 传播 trace 上下文"
         );
         assertTrue(
-                Files.readString(autoConfiguration, StandardCharsets.UTF_8).contains("TraceContextTaskDecorator"),
+                ProjectModel.codeWithoutComments(autoConfiguration).contains("TraceContextTaskDecorator"),
                 "Service 自动装配必须注册 trace 上下文 TaskDecorator"
         );
         assertTrue(
-                !Files.readString(requestContext, StandardCharsets.UTF_8).contains("InheritableThreadLocal")
-                        && !Files.readString(traceContext, StandardCharsets.UTF_8).contains("InheritableThreadLocal")
-                        && !Files.readString(tenantContext, StandardCharsets.UTF_8).contains("InheritableThreadLocal"),
+                !ProjectModel.codeWithoutComments(requestContext).contains("InheritableThreadLocal")
+                        && !traceCode.contains("InheritableThreadLocal")
+                        && !ProjectModel.codeWithoutComments(tenantContext).contains("InheritableThreadLocal"),
                 "请求、trace 和租户上下文不得依赖 InheritableThreadLocal，必须通过显式快照传播"
         );
     }
@@ -1523,26 +1565,31 @@ class LayerBoundaryArchitectureTest {
         Path doc = root.resolve("chaos-docs/src/main/resources/docs/ci-and-smoke.md");
 
         assertTrue(Files.exists(workflow), "工程必须提供 GitHub Actions CI workflow");
+        Object parsedWorkflow = new Yaml().load(Files.readString(workflow, StandardCharsets.UTF_8));
+        assertTrue(parsedWorkflow instanceof java.util.Map<?, ?>, "CI workflow 必须是有效 YAML");
+        String workflowSerialized = parsedWorkflow.toString();
         assertTrue(
-                Files.readString(workflow, StandardCharsets.UTF_8).contains("mvnw -B")
-                        && Files.readString(workflow, StandardCharsets.UTF_8).contains("chaos-release")
-                        && Files.readString(workflow, StandardCharsets.UTF_8).contains("scripts/verify-structure.sh"),
+                workflowSerialized.contains("mvnw -B")
+                        && workflowSerialized.contains("chaos-release")
+                        && workflowSerialized.contains("scripts/verify-structure.sh"),
                 "CI 必须执行单测、发布治理 validate 和结构扫描"
         );
         assertTrue(Files.exists(structureScript), "工程必须提供结构扫描脚本");
+        String structureSource = Files.readString(structureScript, StandardCharsets.UTF_8);
         assertTrue(
-                Files.readString(structureScript, StandardCharsets.UTF_8).contains("package-info.java")
-                        && Files.readString(structureScript, StandardCharsets.UTF_8).contains("spring.factories")
-                        && Files.readString(structureScript, StandardCharsets.UTF_8).contains("*-starter"),
+                structureSource.contains("package-info.java")
+                        && structureSource.contains("spring.factories")
+                        && structureSource.contains("*-starter"),
                 "结构扫描脚本必须覆盖 package-info、spring.factories 和 starter Java 代码"
         );
         assertTrue(Files.exists(smokeScript), "工程必须提供示例 JWT 链路 smoke 脚本");
+        String smokeSource = Files.readString(smokeScript, StandardCharsets.UTF_8);
         assertTrue(
-                Files.readString(smokeScript, StandardCharsets.UTF_8).contains("example-auth-server")
-                        && Files.readString(smokeScript, StandardCharsets.UTF_8).contains("example-order-service")
-                        && Files.readString(smokeScript, StandardCharsets.UTF_8).contains("example-gateway")
-                        && Files.readString(smokeScript, StandardCharsets.UTF_8).contains("/oauth2/token")
-                        && Files.readString(smokeScript, StandardCharsets.UTF_8).contains("/actuator/prometheus"),
+                smokeSource.contains("example-auth-server")
+                        && smokeSource.contains("example-order-service")
+                        && smokeSource.contains("example-gateway")
+                        && smokeSource.contains("/oauth2/token")
+                        && smokeSource.contains("/actuator/prometheus"),
                 "smoke 脚本必须覆盖三服务、登录和 Prometheus"
         );
         assertTrue(Files.exists(doc), "工程必须提供 CI 与 smoke 文档");

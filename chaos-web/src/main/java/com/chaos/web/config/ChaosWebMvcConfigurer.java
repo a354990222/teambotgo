@@ -36,7 +36,10 @@ public class ChaosWebMvcConfigurer implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         if (properties.getRateLimit().isEnabled()) {
-            registry.addInterceptor(rateLimitInterceptor);
+            var registration = registry.addInterceptor(rateLimitInterceptor);
+            if (!properties.getRateLimit().getExcludePaths().isEmpty()) {
+                registration.excludePathPatterns(properties.getRateLimit().getExcludePaths());
+            }
         }
         registry.addInterceptor(idempotentInterceptor);
     }

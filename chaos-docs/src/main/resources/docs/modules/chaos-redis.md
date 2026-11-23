@@ -10,7 +10,8 @@
 | `com.chaos.core.idempotent.IdempotentRepository`（chaos-core） | `RedissonIdempotentRepository` |
 | `com.chaos.core.idempotent.IdempotentRecordStore`（chaos-core） | `RedissonIdempotentRecordStore` |
 | `com.chaos.core.ratelimit.RateLimiter`（chaos-core） | `RedissonRateLimiter` |
-| `com.chaos.domain.cache.CacheKeyStrategy`（chaos-domain） | `PrefixedCacheKeyStrategy` |
+| `com.chaos.domain.cache.CacheKeyStrategy`（chaos-domain） | `PrefixedCacheKeyStrategy`（同时通过 `chaosRedisCachePrefixCustomizer` 作用于 Spring Cache `RedisCacheManager`） |
+| Spring `CacheManager` / 显式缓存模板 | `TwoLevelCacheManager` / `TwoLevelCache`（Caffeine L1 + Redis L2，含 Redis Pub/Sub 跨实例 L1 广播失效）与 `CacheAsideTemplate`（防穿透空值 + 单飞防击穿） |
 | `JwtRevocationService`（chaos-security-api） | 不在本模块：统一实现 `RedisJwtRevocationService` 位于 chaos-security-redis，由 `ChaosSecurityRedisAutoConfiguration` 装配 |
 
 ## 依赖方式
@@ -31,6 +32,16 @@ chaos:
   redis:
     # 幂等、锁、限流、缓存 key、布隆过滤器、延迟队列的统一前缀，默认空（兼容旧 key）
     key-prefix: ${spring.application.name}
+    # 可选：启用 Caffeine（L1）+ Redis（L2）两级缓存（默认 false，需 classpath 存在 caffeine）
+    two-level-cache:
+      enabled: true
+      l1-max-size: 10000
+      l1-ttl: 5m
+      l2-ttl: 30m
+      cache-null-values: true
+      single-flight: true
+      broadcast-invalidation: true
+      invalidation-topic: "chaos:cache:invalidation"
 ```
 
 - 多个服务共用同一个 Redis 时**强烈建议**配置前缀，否则同名 key 会互相冲突（例如 A 服务消费过的消息会让 B 服务跳过）。

@@ -72,6 +72,19 @@ chaos:
     fallback:
       enabled: true
       include-unhandled: true
+    resilience:
+      enabled: true
+      failure-rate-threshold-pct: 50
+      sliding-window-size: 20
+      minimum-number-of-calls: 10
+      wait-duration-in-open-state: 15s
+      permitted-number-of-calls-in-half-open-state: 5
+      max-concurrent-calls: 0
+      # 按路由 ID 覆盖默认熔断/舱壁/超时预算策略
+      rules:
+        example-order-service:
+          max-concurrent-calls: 200
+          call-timeout: 3s
     tenant:
       enabled: true
       fail-closed: true
@@ -184,25 +197,25 @@ curl -H 'Authorization: Bearer eyJ...' \
 鉴权失败和黑名单命中时返回统一 JSON：
 
 ```json
-{"code":"401","message":"unauthorized","data":null,"traceId":"...","timestamp":1710000000000}
+{"code":"COMMON_UNAUTHORIZED","message":"unauthorized","data":null,"traceId":"...","timestamp":1710000000000}
 ```
 
 限流命中时返回 429：
 
 ```json
-{"code":"429","message":"too many requests","data":null,"traceId":"...","timestamp":1710000000000}
+{"code":"COMMON_TOO_MANY_REQUESTS","message":"too many requests","data":null,"traceId":"...","timestamp":1710000000000}
 ```
 
 下游连接失败、超时或未知服务异常会由统一降级处理器输出 JSON：
 
 ```json
-{"code":"503","message":"service unavailable","data":null,"traceId":"...","timestamp":1710000000000}
+{"code":"COMMON_SERVICE_UNAVAILABLE","message":"service unavailable","data":null,"traceId":"...","timestamp":1710000000000}
 ```
 
 租户被冻结、禁用、过期、删除或未知时，fail-closed 模式返回 403：
 
 ```json
-{"code":"403","message":"forbidden","data":null,"traceId":"...","timestamp":1710000000000}
+{"code":"COMMON_FORBIDDEN","message":"forbidden","data":null,"traceId":"...","timestamp":1710000000000}
 ```
 
 ## 扩展点
@@ -291,6 +304,38 @@ chaos:
 - 没命中规则的请求直接放行，白名单与歧义路径不参与匹配；
 - 拒绝时返回 403 统一错误体，上报 `chaos.security.access.denied{source=gateway}` 并写审计事件；
 - 细粒度授权（"只能改自己的订单"）仍由下游服务的 `@RequireAccess` 负责，见[访问控制](../capabilities/access-control.md)。
+
+### 路由级熔断与舱壁隔离
+
+`chaos.gateway.resilience.enabled=true`（默认开启）时，注册 `GatewayResilienceFilter`（`order = 10100`，位于路由解析之后、Netty 转发之前）：
+
+- 按路由 ID 维护独立 `SlidingWindowCircuitBreaker` 与无锁 `SemaphoreBulkhead`，支持通过 `chaos.gateway.resilience.rules.<routeId>.*` 覆盖失败率阈值、窗口大小、最小样本数、冷却期、半开探测数、并发上限与 `call-timeout`；
+- 只将 `5xx`、下游异常或超时计入断路器失败率；熔断打开或超时返回统一 `503 ApiResult` JSON，并发舱壁满载返回统一 `429 ApiResult` JSON；
+- 上报低基数指标 `chaos.resilience.calls{source=gateway}` 与 `chaos.resilience.state.transitions{source=gateway}`。
+
+### 生产监控与 Prometheus 告警参考
+
+建议在 Prometheus / Alertmanager 中为限流故障放行（`fail-open`）与熔断打开配置告警：
+
+```yaml
+groups:
+  - name: chaos-gateway-alerts
+    rules:
+      - alert: ChaosGatewayRateLimitFailOpen
+        expr: increase(chaos_ratelimit_errors_total{source="gateway",outcome="fail-open"}[2m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway rate limiter errored in fail-open mode"
+      - alert: ChaosGatewayCircuitBreakerOpened
+        expr: increase(chaos_resilience_state_transitions_total{source="gateway",outcome="open"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gateway route circuit breaker transitioned to OPEN"
+```
 
 ## 注意事项
 

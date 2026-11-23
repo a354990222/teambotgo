@@ -12,6 +12,10 @@
     <artifactId>chaos-domain</artifactId>
     <name>chaos-domain</name>
     <description>Shared DTO, event and domain contracts without infrastructure dependencies.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>

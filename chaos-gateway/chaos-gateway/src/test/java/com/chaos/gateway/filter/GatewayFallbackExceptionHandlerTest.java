@@ -27,7 +27,7 @@ class GatewayFallbackExceptionHandlerTest {
         StepVerifier.create(handler.handle(exchange, new ConnectException("connection refused"))).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-        assertThat(responseBody(exchange)).contains("\"code\":\"503\"");
+        assertThat(responseBody(exchange)).contains("\"code\":\"COMMON_SERVICE_UNAVAILABLE\"");
         assertThat(responseBody(exchange)).contains("\"traceId\"");
     }
 
@@ -44,7 +44,7 @@ class GatewayFallbackExceptionHandlerTest {
         StepVerifier.create(handler.handle(exchange, new IllegalStateException("boom"))).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(responseBody(exchange)).contains("\"code\":\"500\"");
+        assertThat(responseBody(exchange)).contains("\"code\":\"COMMON_INTERNAL_ERROR\"");
     }
 
     /**

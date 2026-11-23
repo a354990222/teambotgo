@@ -68,7 +68,25 @@ trusted.matches("10.1.2.3"); // true
 
 ## 错误码
 
-新增 `METHOD_NOT_ALLOWED("405")`、`UNSUPPORTED_MEDIA_TYPE("415")`。
+成功码保留字符串 `"0"`；所有内置失败码使用 `COMMON_*`，与 HTTP 状态独立。业务码（例如 `IAM_USER_NOT_FOUND`）由应用定义，不能把响应体 code 当成 HTTP 状态解析。
+
+| 响应体 code | HTTP |
+| --- | --- |
+| COMMON_BAD_REQUEST | 400 |
+| COMMON_UNAUTHORIZED | 401 |
+| COMMON_FORBIDDEN | 403 |
+| COMMON_NOT_FOUND | 404 |
+| COMMON_METHOD_NOT_ALLOWED | 405 |
+| COMMON_CONFLICT | 409 |
+| COMMON_IDEMPOTENT_REJECTED | 409 |
+| COMMON_UNSUPPORTED_MEDIA_TYPE | 415 |
+| COMMON_TOO_MANY_REQUESTS | 429 |
+| COMMON_INTERNAL_ERROR | 500 |
+| COMMON_SERVICE_UNAVAILABLE | 503 |
+
+`CONFLICT` 表示数据冲突，`IDEMPOTENT_REJECTED` 表示重复请求，不能共用响应码。Servlet、Gateway、租户及 JWT 撤销过滤器遵循同一枚举；国际化消息 key 保持不变。
+
+这是对旧数字失败码的响应契约变更：客户端先支持 `COMMON_*` 再升级服务，或协调同时升级。成功码、业务码、HTTP 状态及 OAuth2 的 `error` 协议字段保持原语义。不同环境须使用同一版本的框架构件，正式发布不得覆盖既有发布版本。
 
 ```java
 throw new BizException(CommonErrorCode.BAD_REQUEST, "invalid input");

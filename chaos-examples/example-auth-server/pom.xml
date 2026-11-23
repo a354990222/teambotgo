@@ -11,11 +11,20 @@
     </parent>
     <artifactId>example-auth-server</artifactId>
     <name>example-auth-server</name>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <!-- 场景 starter：授权服务器（authorization + Redis 存储 + 审计 + Actuator/Prometheus）。 -->
         <dependency>
             <groupId>com.chaos</groupId>
             <artifactId>chaos-auth-server-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>

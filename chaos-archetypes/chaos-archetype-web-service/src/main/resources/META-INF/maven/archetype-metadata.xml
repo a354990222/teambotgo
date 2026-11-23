@@ -39,11 +39,12 @@
                 <include>application-prod.yml</include>
             </includes>
         </fileSet>
-        <!-- Markdown 的 ## 标题会被 Velocity 当作行注释删除，README 不做渲染。 -->
+        <!-- Markdown 的 ## 标题会被 Velocity 当作行注释删除，README 与 Dockerfile 不做渲染。 -->
         <fileSet filtered="false" encoding="UTF-8">
             <directory></directory>
             <includes>
                 <include>README.md</include>
+                <include>Dockerfile</include>
             </includes>
         </fileSet>
     </fileSets>

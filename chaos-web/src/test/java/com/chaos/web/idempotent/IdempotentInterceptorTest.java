@@ -54,7 +54,8 @@ class IdempotentInterceptorTest {
     @Test
     void shouldRejectDuplicateAfterSuccess() throws Exception {
         mockMvc.perform(post("/orders").header("Idempotency-Key", "k1")).andExpect(status().isOk());
-        mockMvc.perform(post("/orders").header("Idempotency-Key", "k1")).andExpect(status().isConflict());
+        mockMvc.perform(post("/orders").header("Idempotency-Key", "k1")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COMMON_IDEMPOTENT_REJECTED"));
 
         assertThat(controller.created).hasValue(1);
     }
@@ -78,7 +79,7 @@ class IdempotentInterceptorTest {
     void shouldRejectMissingKeyByDefault() throws Exception {
         mockMvc.perform(post("/orders"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("400"));
+                .andExpect(jsonPath("$.code").value("COMMON_BAD_REQUEST"));
         assertThat(controller.created).hasValue(0);
     }
 

@@ -12,6 +12,10 @@
     <artifactId>chaos-excel</artifactId>
     <name>chaos-excel</name>
     <description>Unified streaming XLSX import, export and template generation based on Apache POI.</description>
+    <properties>
+        <chaos.coverage.instruction.minimum>0.70</chaos.coverage.instruction.minimum>
+        <chaos.coverage.branch.minimum>0.55</chaos.coverage.branch.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.chaos</groupId>

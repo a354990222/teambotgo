@@ -11,7 +11,7 @@ import java.util.Map;
  * 这里把"待派发条数"和"死信条数"变成可判定的健康状态。</p>
  *
  * <p>刻意不依赖 Spring Boot Actuator 类型：{@code chaos-mq} 不应为了一个健康检查强依赖 actuator，
- * 判定逻辑放在这里，{@code HealthIndicator} 适配交给 {@link OutboxHealthIndicator}（actuator 为 optional 依赖）。</p>
+ * 判定逻辑放在这里，{@code HealthIndicator} 适配交给 {@code OutboxHealthIndicator}（actuator 为 optional 依赖）。</p>
  */
 public final class OutboxHealth {
 

@@ -1,5 +1,7 @@
 package com.chaos.security.api.datascope;
 
+import com.chaos.core.context.ContextAccessor;
+import com.chaos.core.context.ContextPropagation;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Optional;
@@ -10,6 +12,42 @@ import java.util.Optional;
 public final class DataScopeContext {
 
     private static final ThreadLocal<Deque<DataScopeRequest>> CURRENT = new ThreadLocal<>();
+
+    private static final ContextAccessor<Deque<DataScopeRequest>> ACCESSOR = new ContextAccessor<>() {
+        @Override
+        public Deque<DataScopeRequest> capture() {
+            Deque<DataScopeRequest> stack = CURRENT.get();
+            return stack == null || stack.isEmpty() ? null : new ArrayDeque<>(stack);
+        }
+
+        @Override
+        public Scope restore(Deque<DataScopeRequest> snapshot) {
+            Deque<DataScopeRequest> previous = CURRENT.get();
+            Deque<DataScopeRequest> previousCopy =
+                    previous == null || previous.isEmpty() ? null : new ArrayDeque<>(previous);
+            if (snapshot == null || snapshot.isEmpty()) {
+                CURRENT.remove();
+            } else {
+                CURRENT.set(new ArrayDeque<>(snapshot));
+            }
+            return () -> {
+                if (previousCopy == null || previousCopy.isEmpty()) {
+                    CURRENT.remove();
+                } else {
+                    CURRENT.set(previousCopy);
+                }
+            };
+        }
+
+        @Override
+        public void clear() {
+            CURRENT.remove();
+        }
+    };
+
+    static {
+        ContextPropagation.register(ACCESSOR);
+    }
 
     private DataScopeContext() {
     }

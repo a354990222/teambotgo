@@ -1,5 +1,6 @@
 package com.chaos.http.client;
 
+import com.chaos.trace.TraceHeaders;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -160,6 +161,11 @@ public class ServiceHttpClient {
         if (token != null && !token.isBlank()) {
             headers.setBearerAuth(token);
         }
+        TraceHeaders.outgoing().forEach((name, value) -> {
+            if (!headers.containsKey(name)) {
+                headers.set(name, value);
+            }
+        });
         addIdentityHeaders(headers, tenant, operator);
         for (int attempt = 0; ; attempt++) {
             try {

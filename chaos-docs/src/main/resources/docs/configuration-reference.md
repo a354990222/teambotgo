@@ -16,8 +16,9 @@ python3 scripts/generate-configuration-reference.py
 
 - [`chaos.audit`](#chaosaudit)（10 项）
 - [`chaos.authorization`](#chaosauthorization)（55 项）
+- [`chaos.cloud`](#chaoscloud)（9 项）
 - [`chaos.diagnostics`](#chaosdiagnostics)（6 项）
-- [`chaos.gateway`](#chaosgateway)（56 项）
+- [`chaos.gateway`](#chaosgateway)（65 项）
 - [`chaos.job`](#chaosjob)（4 项）
 - [`chaos.mq`](#chaosmq)（17 项）
 - [`chaos.mybatis`](#chaosmybatis)（16 项）
@@ -25,13 +26,13 @@ python3 scripts/generate-configuration-reference.py
 - [`chaos.openapi`](#chaosopenapi)（7 项）
 - [`chaos.process`](#chaosprocess)（2 项）
 - [`chaos.production-safety`](#chaosproduction-safety)（5 项）
-- [`chaos.redis`](#chaosredis)（1 项）
+- [`chaos.redis`](#chaosredis)（9 项）
 - [`chaos.security`](#chaossecurity)（21 项）
 - [`chaos.service`](#chaosservice)（3 项）
 - [`chaos.storage`](#chaosstorage)（9 项）
 - [`chaos.tenant`](#chaostenant)（4 项）
 - [`chaos.time`](#chaostime)（1 项）
-- [`chaos.web`](#chaosweb)（22 项）
+- [`chaos.web`](#chaosweb)（41 项）
 
 ## chaos.audit
 
@@ -108,6 +109,20 @@ python3 scripts/generate-configuration-reference.py
 | `chaos.authorization.token.redis-key-prefix` | `String` | `chaos:authorization` | Redis token 模式下使用的 key 前缀。 |  | `chaos-authorization` |
 | `chaos.authorization.token.type` | `TokenType` | `jwt` | token 类型，JWT 为自包含 token，REDIS 为引用 token。 | `jwt`, `redis` | `chaos-authorization` |
 
+## chaos.cloud
+
+| 配置项 | 类型 | 默认值 | 说明 | 可选值 | 所属 artifact |
+| --- | --- | --- | --- | --- | --- |
+| `chaos.cloud.feign.unwrap-result` | `Boolean` | `true` | 是否自动解包服务端 Result/ApiResult 信封，并在业务错误码非成功时翻译为 BizException。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.call-timeout` | `Duration` |  | 单次下游调用额外超时预算；留空表示沿用底层 HTTP 客户端超时设置。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.enabled` | `Boolean` | `true` | 是否为 OpenFeign 与 `ServiceHttpClients` 启用熔断及舱壁保护，默认开启。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.failure-rate-threshold-pct` | `Integer` | `50` | 触发断路器打开的失败率百分比阈值（1..100）。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.max-concurrent-calls` | `Integer` | `0` | 单目标服务并发舱壁上限；0 表示不限制并发。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.minimum-number-of-calls` | `Integer` | `10` | 计算失败率前至少需要的调用样本数。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.permitted-number-of-calls-in-half-open-state` | `Integer` | `5` | 半开探测期允许放行的请求次数。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.sliding-window-size` | `Integer` | `20` | 滑动统计窗口大小（按最近请求次数统计）。 |  | `chaos-autoconfigure` |
+| `chaos.cloud.resilience.wait-duration-in-open-state` | `Duration` | `15s` | 断路器处于 OPEN 状态后的冷却等待时间。 |  | `chaos-autoconfigure` |
+
 ## chaos.diagnostics
 
 | 配置项 | 类型 | 默认值 | 说明 | 可选值 | 所属 artifact |
@@ -173,6 +188,15 @@ python3 scripts/generate-configuration-reference.py
 | `chaos.gateway.rate-limit.skip-paths` | `List<String>` |  | 跳过限流的路径（Ant 风格）。 与鉴权白名单相互独立：登录、验证码等接口通常在鉴权白名单中，但恰恰最需要限流。 |  | `chaos-gateway` |
 | `chaos.gateway.reject-ambiguous-path` | `Boolean` | `true` | 是否拒绝包含路径穿越或歧义编码（`..`、`%2e`、`%2f`、`;`、反斜杠等）的请求。 白名单按解码后的路径匹配，而下游容器会再做一次规范化；两者不一致时可能绕过鉴权，因此默认直接返回 400。 |  | `chaos-gateway` |
 | `chaos.gateway.request-timing-enabled` | `Boolean` | `true` | 是否输出请求耗时日志。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.call-timeout` | `Duration` |  | 路由转发超时预算；留空表示沿用网关全局或路由 HTTPClient 超时设置。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.enabled` | `Boolean` | `true` | 是否启用 Gateway 路由级断路器、并发舱壁与超时保护，默认开启。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.failure-rate-threshold-pct` | `Integer` | `50` | 触发断路器打开的失败率百分比阈值（1..100）。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.max-concurrent-calls` | `Integer` | `0` | 单路由最大并发在途请求数；0 表示不限制并发。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.minimum-number-of-calls` | `Integer` | `10` | 触发失败率计算前至少需要的调用次数。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.permitted-number-of-calls-in-half-open-state` | `Integer` | `5` | 半开探测期允许放行的请求数。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.rules` | `Map<String,RouteResilienceRule>` |  | 按路由 ID（如 `example-order-service`）覆盖默认熔断、舱壁与超时预算策略。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.sliding-window-size` | `Integer` | `20` | 滑动统计窗口大小（按最近请求数统计）。 |  | `chaos-gateway` |
+| `chaos.gateway.resilience.wait-duration-in-open-state` | `Duration` | `15s` | 断路器处于 OPEN 状态后的冷却等待时间。 |  | `chaos-gateway` |
 | `chaos.gateway.tenant.enabled` | `Boolean` | `true` | 是否启用租户状态校验。 |  | `chaos-gateway` |
 | `chaos.gateway.tenant.fail-closed` | `Boolean` | `true` | 租户 ID 缺失、未知或不可访问时是否拒绝请求。 |  | `chaos-gateway` |
 | `chaos.gateway.tenant.header-name` | `String` | `X-Tenant-Id` | 租户 ID 请求头名称。 |  | `chaos-gateway` |
@@ -275,6 +299,14 @@ python3 scripts/generate-configuration-reference.py
 | 配置项 | 类型 | 默认值 | 说明 | 可选值 | 所属 artifact |
 | --- | --- | --- | --- | --- | --- |
 | `chaos.redis.key-prefix` | `String` | `""` | 幂等、分布式锁、限流、缓存 key、布隆过滤器和延迟队列的统一 key 前缀。 多个服务共用同一个 Redis 时强烈建议设置为应用名（例如 `${spring.application.name`}）， 否则同名 key 会互相冲突。默认空字符串，与旧版本 key 保持兼容；修改前缀后旧 key 不再生效， 请在发布窗口内评估锁互斥和延迟队列存量数据。JWT 黑名单需要跨服务共享，不受该前缀影响。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.broadcast-invalidation` | `Boolean` | `true` | 是否通过 Redis Pub/Sub 向同应用其他实例广播 L1 本地缓存失效通知。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.cache-null-values` | `Boolean` | `true` | 是否缓存 `null` 查询结果以防止缓存穿透。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.enabled` | `Boolean` | `false` | 是否启用 Caffeine（L1）+ Redis（L2）两级缓存。默认关闭，需显式开启。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.invalidation-topic` | `String` | `chaos:cache:invalidation` | 两级缓存跨实例 L1 失效广播使用的 Redis Pub/Sub 通道名（配置 `chaos.redis.key-prefix` 时自动叠加前缀）。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.l1-max-size` | `Long` | `10000` | 每个缓存命名空间在本地 L1（Caffeine）中保留的最大条目数。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.l1-ttl` | `Duration` | `5m` | 本地 L1（Caffeine）条目的写入过期时间。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.l2-ttl` | `Duration` | `30m` | 共享 L2（Redis）条目的默认过期时间。 |  | `chaos-autoconfigure` |
+| `chaos.redis.two-level-cache.single-flight` | `Boolean` | `true` | 是否开启按 key 分段单飞加载以防止热点缓存击穿。 |  | `chaos-autoconfigure` |
 
 ## chaos.security
 
@@ -299,7 +331,7 @@ python3 scripts/generate-configuration-reference.py
 | `chaos.security.opaque-token.connect-timeout` | `Duration` | `1s` | 连接授权服务器 introspection 端点的超时时间，默认 1 秒。 |  | `chaos-security` |
 | `chaos.security.opaque-token.introspection-uri` | `String` |  | introspection 端点地址。 |  | `chaos-security` |
 | `chaos.security.opaque-token.read-timeout` | `Duration` | `3s` | 读取 introspection 响应的超时时间，默认 3 秒；避免授权服务器变慢时长期占用业务线程。 |  | `chaos-security` |
-| `chaos.security.permit-all` | `String[]` | `/actuator/health` | 允许匿名访问的路径列表。 | `/actuator/health`, `/actuator/health/**`, `/v3/api-docs/**`, `/swagger-ui/**` | `chaos-security` |
+| `chaos.security.permit-all` | `String[]` | `/actuator/health/**` | 允许匿名访问的路径列表。 | `/actuator/health`, `/actuator/health/**`, `/v3/api-docs/**`, `/swagger-ui/**` | `chaos-security` |
 | `chaos.security.token.type` | `TokenType` | `jwt` | token 校验类型；JWT 校验自包含 token，OPAQUE 通过授权服务器 introspection 校验引用 token。 | `jwt`, `opaque` | `chaos-security` |
 
 ## chaos.service
@@ -356,9 +388,28 @@ python3 scripts/generate-configuration-reference.py
 | `chaos.web.max-string-length` | `Integer` | `0` | Jackson 允许读取的最大字符串长度；非正数表示沿用 Jackson 默认值。 |  | `chaos-web` |
 | `chaos.web.open-api.group` | `String` |  | 分组名称；为空时不注册分组文档。 |  | `chaos-web` |
 | `chaos.web.open-api.paths` | `List<String>` |  | 分组匹配的路径模式。 |  | `chaos-web` |
-| `chaos.web.rate-limit.default-permits-per-second` | `Integer` | `100` | 默认每秒许可数，未在 `@RateLimit` 指定时生效。 |  | `chaos-web` |
+| `chaos.web.rate-limit.default-permits-per-second` | `Integer` | `100` | 默认每秒许可数，在 `@RateLimit` 未指定阈值或 `mode=GLOBAL` 时生效。 |  | `chaos-web` |
 | `chaos.web.rate-limit.enabled` | `Boolean` | `true` | 是否启用限流拦截器。 |  | `chaos-web` |
+| `chaos.web.rate-limit.exclude-paths` | `List<String>` |  | 不参与 Web 限流拦截的路径模式（Ant 风格），例如健康检查、OpenAPI 与错误页。 |  | `chaos-web` |
 | `chaos.web.rate-limit.max-local-keys` | `Integer` | `10000` | 默认内存限流器最多保留的 key 数。 |  | `chaos-web` |
+| `chaos.web.rate-limit.mode` | `RateLimitMode` | `annotation-only` | 限流生效模式：ANNOTATION_ONLY 只对标注 `@RateLimit` 的方法/类限流；GLOBAL 对所有未排除路径应用默认阈值。 |  | `chaos-web` |
+| `chaos.web.reactive.enabled` | `Boolean` | `true` | 是否启用响应式业务 Web 治理装配（包含统一响应、全局异常、Trace、限流、幂等与基础安全响应头）。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.idempotent.enabled` | `Boolean` | `true` | 是否启用基于请求头的响应式幂等拦截（仅当请求携带幂等头时校验）。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.idempotent.header-name` | `String` | `Idempotency-Key` | 携带客户端幂等请求键的 HTTP 请求头名。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.idempotent.key-prefix` | `String` | `chaos:web-reactive:idempotent:` | 响应式幂等 Redis key 前缀。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.idempotent.max-local-keys` | `Integer` | `10000` | 内存幂等仓储保留的最大 key 数量。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.idempotent.methods` | `List<String>` |  | 需要检查幂等请求头的 HTTP 方法列表。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.idempotent.ttl` | `Duration` | `10m` | 幂等键占用锁定的默认存活时间。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.rate-limit.default-permits-per-second` | `Integer` | `100` | 默认每秒允许请求数。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.rate-limit.enabled` | `Boolean` | `true` | 是否启用响应式全局限流过滤器。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.rate-limit.fail-open` | `Boolean` | `true` | Redis 等远端限流器故障时是否放行。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.rate-limit.key-prefix` | `String` | `chaos:web-reactive:rate-limit:` | 响应式限流 Redis key 前缀。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.rate-limit.max-local-keys` | `Integer` | `10000` | 内存限流器保留的最大 key 数量。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.rate-limit.skip-paths` | `List<String>` |  | 跳过限流的 Ant 路径列表。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.response-wrap-enabled` | `Boolean` | `true` | 是否自动将控制器非 `ApiResult` 返回值包装为统一 `ApiResult`。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.response-wrap-exclude-paths` | `List<String>` |  | 跳过统一响应自动包装的请求路径模式（Ant 风格）。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.trace-enabled` | `Boolean` | `true` | 是否启用响应式 Trace / 身份上下文透传过滤器。 |  | `chaos-web-reactive` |
+| `chaos.web.reactive.xss-enabled` | `Boolean` | `true` | 是否启用基础安全响应头与查询参数危险片段拦截。 |  | `chaos-web-reactive` |
 | `chaos.web.request-timing-enabled` | `Boolean` | `true` | 是否输出请求耗时日志。 |  | `chaos-web` |
 | `chaos.web.response-wrap-enabled` | `Boolean` | `true` | 是否启用统一响应包装。 |  | `chaos-web` |
 | `chaos.web.safe-long-serialization` | `Boolean` | `false` | 是否把超过 JavaScript 安全整数范围的 Long 序列化为字符串；默认关闭以保持现有 JSON 契约。 |  | `chaos-web` |

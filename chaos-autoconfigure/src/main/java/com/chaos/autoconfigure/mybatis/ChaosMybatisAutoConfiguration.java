@@ -29,6 +29,9 @@ import com.chaos.core.id.IdGenerator;
 import com.chaos.mybatis.id.SnowflakeIdGenerator;
 import com.chaos.mybatis.id.MybatisIdentifierGeneratorAdapter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.apache.ibatis.plugin.Interceptor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -114,8 +117,12 @@ public class ChaosMybatisAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public MetaObjectHandler metaObjectHandler(ObjectProvider<AuditorProvider> auditorProvider) {
-        return new ChaosMetaObjectHandler(auditorProvider.getIfAvailable(ChaosMetaObjectHandler::defaultAuditorProvider));
+    public MetaObjectHandler metaObjectHandler(
+            ObjectProvider<AuditorProvider> auditorProvider,
+            ObjectProvider<Clock> clockProvider) {
+        return new ChaosMetaObjectHandler(
+                auditorProvider.getIfAvailable(ChaosMetaObjectHandler::defaultAuditorProvider),
+                clockProvider.getIfAvailable(Clock::systemDefaultZone));
     }
 
     /**
@@ -187,7 +194,7 @@ public class ChaosMybatisAutoConfiguration {
     }
 
     /**
-     * 生产环境禁止使用空数据权限提供者。
+     * 生产环境禁止使用空数据权限提供者和自动推断节点的雪花 ID 生成器。
      */
     @Bean
     @ConditionalOnMissingBean(name = "chaosMybatisProductionSafetyChecker")
@@ -196,17 +203,29 @@ public class ChaosMybatisAutoConfiguration {
             ConfigurableListableBeanFactory beanFactory,
             ChaosMybatisProperties properties) {
         return () -> {
-            if (!properties.getDataScope().isEnabled()) {
+            if (!ProductionSafety.isProductionEnvironment(environment)) {
                 return;
             }
-            ProductionSafety.warnUnsafeDefaultBeans(
-                    environment,
-                    beanFactory,
-                    Map.of(
-                            NoopDataScopeProvider.class.getName(),
-                            "chaos-mybatis: 生产环境不能使用 NoopDataScopeProvider，请接入真实数据权限 Provider 或关闭数据权限"
-                    )
-            );
+            List<String> violations = new ArrayList<>();
+            if (properties.getDataScope().isEnabled()) {
+                String[] noopBeans = beanFactory.getBeanNamesForType(NoopDataScopeProvider.class, true, false);
+                if (noopBeans.length > 0) {
+                    violations.add(ProductionSafety.withBeanNames(
+                            "chaos-mybatis: 生产环境不能使用 NoopDataScopeProvider，请接入真实数据权限 Provider 或关闭数据权限",
+                            noopBeans));
+                }
+            }
+            String[] idGenBeans = beanFactory.getBeanNamesForType(SnowflakeIdGenerator.class, true, false);
+            for (String beanName : idGenBeans) {
+                SnowflakeIdGenerator generator = beanFactory.getBean(beanName, SnowflakeIdGenerator.class);
+                if (generator.isAutoAssignedNode()) {
+                    violations.add(ProductionSafety.withBeanNames(
+                            "chaos-mybatis: 生产环境不能使用自动推断节点的 SnowflakeIdGenerator，"
+                                    + "请显式配置 chaos.mybatis.id-generator.worker-id 和 datacenter-id",
+                            new String[]{beanName}));
+                }
+            }
+            ProductionSafety.report(environment, violations);
         };
     }
 
