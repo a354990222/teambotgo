@@ -1,4 +1,4 @@
-Author: Yongchun Liu (354990222@qq.com)
+Author: Yc Liu (354990222@qq.com)
 
 # Chaos Framework
 
