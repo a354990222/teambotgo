@@ -1,3 +1,5 @@
+author:liuyongchun
+
 # Chaos Framework
 
 基于 Java 21、Spring Boot 3.5、Spring Cloud 2025.0 的企业级服务脚手架，按 DDD 与六边形架构提供开箱即用的基础能力：
